@@ -38,25 +38,22 @@ const OutShipmentsTable = ({ shipments }) => {
             },
         },
         {
-            id: "in_shipments",
-            header: () => <div className="text-start">الشحنات الواردة</div>,
+            id: "in_shipment",
+            header: () => <div className="text-start">الشحنة الواردة المرتبطة</div>,
             cell: ({ row }) => {
-                const shipments = row.original?.in_shipments || []
-                if (!shipments.length) {
+                const shipment = row.original?.in_shipment
+                if (!shipment) {
                     return <div className="text-start text-neutral-500">-</div>
                 }
                 return (
                     <div className="flex flex-wrap gap-1 justify-start">
-                        {shipments.map(shipment => (
-                            <span
-                                key={shipment.id}
-                                className="inline-flex items-center gap-1 rounded-full bg-neutral-100 text-neutral-700 border border-neutral-200 px-3 py-1 text-xs"
-                            >
-                                <span>{shipment.bill_number || '-'}</span>
-                                <span className="text-neutral-400">/</span>
-                                <span>{shipment.sub_bill_number || '-'}</span>
-                            </span>
-                        ))}
+                        <span
+                            className="inline-flex items-center gap-1 rounded-full bg-neutral-100 text-neutral-700 border border-neutral-200 px-3 py-1 text-xs"
+                        >
+                            <span>{shipment.bill_number || '-'}</span>
+                            <span className="text-neutral-400">/</span>
+                            <span>{shipment.sub_bill_number || '-'}</span>
+                        </span>
                     </div>
                 )
             },
@@ -96,6 +93,26 @@ const OutShipmentsTable = ({ shipments }) => {
         {
             accessorKey: "package_count",
             header: () => <div className="text-start">عدد الطرود</div>,
+        },
+        {
+            id: "exported_count",
+            header: () => <div className="text-start">مصدر</div>,
+            cell: ({ row }) => {
+                const insh = row.original?.in_shipment
+                const value = insh?.exported_count
+                return <div className="text-start">{value ?? '-'}</div>
+            },
+        },
+        {
+            id: "remaining",
+            header: () => <div className="text-start">المتبقي</div>,
+            cell: ({ row }) => {
+                const insh = row.original?.in_shipment
+                if (!insh) return <div className="text-start">-</div>
+                const total = Number(insh.package_count || 0)
+                const exp = Number(insh.exported_count || 0)
+                return <div className="text-start">{Math.max(0, total - exp)}</div>
+            },
         },
         {
             accessorKey: "weight",
@@ -194,11 +211,23 @@ const OutShipmentsTable = ({ shipments }) => {
         ? shipments || []
         : table.getFilteredRowModel().rows.map(row => row.original)
 
+    // Prepare export rows to include derived fields used by PDF (مصدر, المتبقي)
+    const exportRows = (filteredData || []).map(r => {
+        const insh = r?.in_shipment || {}
+        const total = Number(insh.package_count || 0)
+        const exp = Number(insh.exported_count || 0)
+        return {
+            ...r,
+            exported_count: insh.exported_count,
+            remaining: Math.max(0, total - exp),
+        }
+    })
+
     return (
         <div className='border p-4 border-neutral-300 mt-8 rounded-2xl bg-white'>
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-neutral-800">الشحنات الصادرة</h2>
-                <ShipmentReportExport data={filteredData} title="الشحنات الصادرة" shipmentType="out" />
+                <ShipmentReportExport data={exportRows} title="الشحنات الصادرة" shipmentType="out" />
             </div>
             <DataTable table={table} columns={columns} />
         </div>

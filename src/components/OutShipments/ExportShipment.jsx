@@ -14,7 +14,7 @@ import { LoaderCircle, Plus, X, Check, AlertCircle, Send } from "lucide-react"
 import { useForm } from "react-hook-form"
 import * as yup from 'yup'
 import { yupResolver } from "@hookform/resolvers/yup"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
     Select,
     SelectContent,
@@ -32,7 +32,7 @@ import DeletePopup from "../DeletePopup"
 import { contractOptions, yearsOptions } from "../../constants"
 import { formatCurrency, formatWeight } from "../../utils"
 
-const ExportShipment = ({ children }) => {
+const ExportShipment = ({ children, inShipment: presetInShipment = null }) => {
     const dispatch = useDispatch()
     const [open, setOpen] = useState(false);
     const { loading: outLoading } = useSelector(state => state.outShipments)
@@ -42,7 +42,7 @@ const ExportShipment = ({ children }) => {
     const loading = inLoading || outLoading
 
     // Selected inshipments state
-    const [selectedInShipments, setSelectedInShipments] = useState([])
+    const [selectedInShipment, setSelectedInShipment] = useState(null)
     const [searchTerm, setSearchTerm] = useState("")
 
     // Destination state
@@ -59,26 +59,38 @@ const ExportShipment = ({ children }) => {
     const [companySearchTerm, setCompanySearchTerm] = useState("")
     const [deleteCompanyDialog, setDeleteCompanyDialog] = useState({ open: false, company: null })
 
-    const validationSchema = yup.object({
-        bill_number: yup.string().required("هذا الحقل لا يمكن أن يكون فارغًا"),
-        arrival_date: yup.string().required("هذا الحقل لا يمكن أن يكون فارغًا"),
-        sub_bill_number: yup.string().required("هذا الحقل لا يمكن أن يكون فارغًا"),
-        company_name: yup.string().required("هذا الحقل لا يمكن أن يكون فارغًا"),
-        package_count: yup.number().required("هذا الحقل لا يمكن أن يكون فارغًا").min(1, "يجب أن يكون العدد أكبر من صفر"),
-        weight: yup.number().required("هذا الحقل لا يمكن أن يكون فارغًا").min(0, "يجب أن يكون الوزن أكبر من أو يساوي صفر"),
-        destination: yup.string().required("هذا الحقل لا يمكن أن يكون فارغًا"),
-        payment_fees: yup.number().required("هذا الحقل لا يمكن أن يكون فارغًا").min(0, "يجب أن تكون الرسوم أكبر من أو تساوي صفر"),
-        customs_certificate: yup.string().required("هذا الحقل لا يمكن أن يكون فارغًا"),
-        contract_status: yup.object({
-            contract: yup.string().required("حقل العقد مطلوب"),
-            ratification: yup.string().required("حقل التصديق مطلوب"),
-            status: yup.string().required("حالة العقد مطلوبة"),
-        }),
-        disbursement_date: yup.string().nullable(),
-        receiver_name: yup.string().required("هذا الحقل لا يمكن أن يكون فارغًا"),
-        ground_fees: yup.number().required("هذا الحقل لا يمكن أن يكون فارغًا").min(0, "يجب أن تكون الرسوم أكبر من أو تساوي صفر"),
-        export_date: yup.string().required("تاريخ التصدير مطلوب"),
-    })
+    // Calculate aggregated values from selected inshipments (for display only)
+    const remainingPackages = selectedInShipment
+        ? Math.max(0, Number(selectedInShipment.package_count || 0) - Number(selectedInShipment.exported_count || 0))
+        : 0
+
+    const validationSchema = useMemo(() => (
+        yup.object({
+            bill_number: yup.string().required("هذا الحقل لا يمكن أن يكون فارغًا"),
+            arrival_date: yup.string().required("هذا الحقل لا يمكن أن يكون فارغًا"),
+            sub_bill_number: yup.string().required("هذا الحقل لا يمكن أن يكون فارغًا"),
+            company_name: yup.string().required("هذا الحقل لا يمكن أن يكون فارغًا"),
+            package_count: yup
+                .number()
+                .typeError("يجب إدخال رقم صحيح")
+                .required("هذا الحقل لا يمكن أن يكون فارغًا")
+                .min(1, "يجب أن يكون العدد أكبر من صفر")
+                .max(remainingPackages || 0, `لا يمكن أن يتجاوز المتبقي: ${remainingPackages || 0}`),
+            weight: yup.number().required("هذا الحقل لا يمكن أن يكون فارغًا").min(0, "يجب أن يكون الوزن أكبر من أو يساوي صفر").typeError("يجب إدخال رقم صحيح"),
+            destination: yup.string().required("هذا الحقل لا يمكن أن يكون فارغًا"),
+            payment_fees: yup.number().required("هذا الحقل لا يمكن أن يكون فارغًا").min(0, "يجب أن تكون الرسوم أكبر من أو تساوي صفر").typeError("يجب إدخال رقم صحيح"),
+            customs_certificate: yup.string().required("هذا الحقل لا يمكن أن يكون فارغًا"),
+            contract_status: yup.object({
+                contract: yup.string().required("حقل العقد مطلوب"),
+                ratification: yup.string().required("حقل التصديق مطلوب"),
+                status: yup.string().required("حالة العقد مطلوبة"),
+            }),
+            disbursement_date: yup.string().nullable(),
+            receiver_name: yup.string().required("هذا الحقل لا يمكن أن يكون فارغًا"),
+            ground_fees: yup.number().required("هذا الحقل لا يمكن أن يكون فارغًا").min(0, "يجب أن تكون الرسوم أكبر من أو تساوي صفر").typeError("يجب إدخال رقم صحيح"),
+            export_date: yup.string().required("تاريخ التصدير مطلوب"),
+        })
+    ), [remainingPackages])
 
     const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm({
         resolver: yupResolver(validationSchema),
@@ -105,8 +117,12 @@ const ExportShipment = ({ children }) => {
     })
 
 
-    // Filter non-exported inshipments
-    const nonExportedShipments = inShipments.filter(shipment => !shipment.export)
+    // Filter non-exported or partially exported inshipments (remain visible until fully exported)
+    const nonExportedShipments = inShipments.filter(shipment => {
+        const total = Number(shipment.package_count || 0)
+        const exported = Number(shipment.exported_count || 0)
+        return exported < total
+    })
 
     // Filter shipments based on search
     const filteredShipments = nonExportedShipments.filter(shipment => {
@@ -130,19 +146,14 @@ const ExportShipment = ({ children }) => {
         }
     }, [dispatch, open])
 
-    // Calculate aggregated values from selected inshipments (for display only)
-    const aggregatedData = selectedInShipments.reduce((acc, shipment) => {
-        acc.package_count += Number(shipment.package_count || 0)
-        acc.weight += Number(shipment.weight || 0)
-        acc.payment_fees += Number(shipment.payment_fees || 0)
-        acc.ground_fees += Number(shipment.ground_fees || 0)
-        return acc
-    }, {
-        package_count: 0,
-        weight: 0,
-        payment_fees: 0,
-        ground_fees: 0
-    })
+    // When dialog opens with a preset inshipment, preselect it
+    useEffect(() => {
+        if (open && presetInShipment) {
+            setSelectedInShipment(presetInShipment)
+        }
+    }, [open, presetInShipment])
+
+
 
 
     const handleDestinationChange = (value) => {
@@ -207,27 +218,17 @@ const ExportShipment = ({ children }) => {
         company.name && company.name.toLowerCase().includes(companySearchTerm.toLowerCase())
     )
 
-    const handleToggleShipment = (shipment) => {
-        setSelectedInShipments(prev => {
-            const exists = prev.find(s => s.id === shipment.id)
-            if (exists) {
-                return prev.filter(s => s.id !== shipment.id)
-            } else {
-                return [...prev, shipment]
-            }
-        })
+    const handleSelectShipment = (shipment) => {
+        setSelectedInShipment(prev => (prev && prev.id === shipment.id ? null : shipment))
+        if (shipment && shipment.id === selectedInShipment?.id) return
+        // Reset form values when changing selected shipment
+        setValue('package_count', '')
     }
 
-    const handleSelectAll = () => {
-        if (selectedInShipments.length === filteredShipments.length) {
-            setSelectedInShipments([])
-        } else {
-            setSelectedInShipments([...filteredShipments])
-        }
-    }
+    const handleSelectAll = () => { }
 
     const onSubmit = handleSubmit(async (formData) => {
-        if (selectedInShipments.length === 0) {
+        if (!selectedInShipment) {
             return
         }
 
@@ -247,7 +248,7 @@ const ExportShipment = ({ children }) => {
             contract_status: `${formData.contract_status.contract} / ${formData.contract_status.ratification} / ${formData.contract_status.status}`,
             disbursement_date: formData.disbursement_date || null,
             export_date: formData.export_date || null,
-            in_shipment_ids: selectedInShipments.map(s => s.id),
+            in_shipment_id: selectedInShipment.id,
         }
 
         try {
@@ -259,7 +260,7 @@ const ExportShipment = ({ children }) => {
                 dispatch(getShipments()) // Refresh inshipments to update export status
                 setOpen(false)
                 reset()
-                setSelectedInShipments([])
+                setSelectedInShipment(null)
                 setSelectedDestination("")
                 setDestinationSearchTerm("")
                 setSelectedCompany("")
@@ -273,7 +274,7 @@ const ExportShipment = ({ children }) => {
     useEffect(() => {
         if (!open) {
             reset()
-            setSelectedInShipments([])
+            setSelectedInShipment(null)
             setSelectedDestination("")
             setShowAddDestination(false)
             setNewDestination("")
@@ -291,124 +292,54 @@ const ExportShipment = ({ children }) => {
             <Dialog open={open} onOpenChange={setOpen}>
                 <form>
                     <DialogTrigger asChild>
-                        <Button className="cursor-pointer">
-                            <Send />
-                            تصدير شحنة جديدة
-                        </Button>
+                        {children ? (
+                            children
+                        ) : (
+                            <Button className="cursor-pointer">
+                                <Send />
+                                تصدير شحنة جديدة
+                            </Button>
+                        )}
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[900px] [&_[data-slot='dialog-close']]:!right-[95%] max-h-[90vh] overflow-y-auto thin-scrollbar">
                         <DialogHeader className="!text-start !py-2">
                             <DialogTitle>تصدير الشحنة</DialogTitle>
                             <DialogDescription>
-                                اختر الشحنات الواردة التي تريد تصديرها وقم بملء بيانات الشحنة الصادرة.
+                                اختر الشحنة الواردة ثم قم بملء بيانات الشحنة الصادرة.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 p-1">
-                            {/* Selection Section */}
-                            <div className="border rounded-xl p-4 bg-neutral-50">
-                                <div className="flex items-center justify-between mb-4">
-                                    <Label className="text-lg font-semibold">اختر الشحنات الواردة</Label>
-                                    <div className="flex items-center gap-2">
-                                        <Checkbox
-                                            checked={selectedInShipments.length === filteredShipments.length && filteredShipments.length > 0}
-                                            onCheckedChange={handleSelectAll}
-                                        />
-                                        <span className="text-sm">تحديد الكل</span>
-                                    </div>
-                                </div>
 
-                                {/* Search */}
-                                <div className="mb-4">
-                                    <input
-                                        type="text"
-                                        placeholder="ابحث في الشحنات..."
-                                        value={searchTerm}
-                                        onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="w-full px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                    />
-                                </div>
-
-                                {/* Selected count */}
-                                {selectedInShipments.length > 0 && (
-                                    <div className="mb-4 p-2 bg-primary-50 border border-primary-200 rounded-md">
-                                        <span className="text-sm font-medium text-primary-700">
-                                            تم اختيار {selectedInShipments.length} شحنة
-                                        </span>
-                                    </div>
-                                )}
-
-                                {/* Shipments List */}
-                                <div className="max-h-[200px] overflow-y-auto border rounded-lg bg-white">
-                                    {filteredShipments.length === 0 ? (
-                                        <div className="p-4 text-center text-neutral-500">
-                                            {searchTerm ? "لا توجد نتائج للبحث" : "لا توجد شحنات واردة متاحة للتصدير"}
-                                        </div>
-                                    ) : (
-                                        <table className="w-full text-sm">
-                                            <thead className="bg-neutral-100 sticky top-0">
-                                                <tr>
-                                                    <th className="p-2 text-right w-12"></th>
-                                                    <th className="p-2 text-right">رقم البوليصة</th>
-                                                    <th className="p-2 text-right">رقم البوليصة الفرعية</th>
-                                                    <th className="p-2 text-right">اسم الشركة</th>
-                                                    <th className="p-2 text-right">الجهة</th>
-                                                    <th className="p-2 text-right">الوزن</th>
-                                                    <th className="p-2 text-right">عدد الطرود</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {filteredShipments.map((shipment) => (
-                                                    <tr
-                                                        key={shipment.id}
-                                                        className={`border-b hover:bg-neutral-50 cursor-pointer ${selectedInShipments.find(s => s.id === shipment.id) ? 'bg-primary-50' : ''
-                                                            }`}
-                                                        onClick={() => handleToggleShipment(shipment)}
-                                                    >
-                                                        <td className="p-2" onClick={(e) => e.stopPropagation()}>
-                                                            <Checkbox
-                                                                checked={!!selectedInShipments.find(s => s.id === shipment.id)}
-                                                                onCheckedChange={() => handleToggleShipment(shipment)}
-                                                            />
-                                                        </td>
-                                                        <td className="p-2">{shipment.bill_number || '-'}</td>
-                                                        <td className="p-2">{shipment.sub_bill_number || '-'}</td>
-                                                        <td className="p-2">{shipment.company_name || '-'}</td>
-                                                        <td className="p-2">{shipment.destination}</td>
-                                                        <td className="p-2">{formatWeight(shipment.weight)}</td>
-                                                        <td className="p-2">{shipment.package_count || '-'}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    )}
-                                </div>
-                            </div>
 
                             {/* Form Fields */}
-                            {selectedInShipments.length > 0 && (
+                            {selectedInShipment && (
                                 <>
-                                    {/* Aggregated Summary */}
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                                    {/* Selected InShipment Summary */}
+                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
                                         <div className="grid gap-1">
-                                            <span className="text-xs text-blue-600">إجمالي عدد الطرود</span>
-                                            <div className="p-2 px-3 rounded-lg border bg-white font-semibold">{aggregatedData.package_count}</div>
+                                            <span className="text-xs text-blue-600">عدد الطرود (الواردة)</span>
+                                            <div className="p-2 px-3 rounded-lg border bg-white font-semibold">{selectedInShipment.package_count}</div>
                                         </div>
                                         <div className="grid gap-1">
-                                            <span className="text-xs text-blue-600">إجمالي الوزن</span>
-                                            <div className="p-2 px-3 rounded-lg border bg-white font-semibold">{formatWeight(aggregatedData.weight)}</div>
+                                            <span className="text-xs text-blue-600">المُصَدَّر</span>
+                                            <div className="p-2 px-3 rounded-lg border bg-white font-semibold">{selectedInShipment.exported_count || 0}</div>
                                         </div>
                                         <div className="grid gap-1">
-                                            <span className="text-xs text-blue-600">إجمالي رسوم الدفع</span>
-                                            <div className="p-2 px-3 rounded-lg border bg-white font-semibold">{formatCurrency(aggregatedData.payment_fees)}</div>
+                                            <span className="text-xs text-blue-600">المتبقي</span>
+                                            <div className="p-2 px-3 rounded-lg border bg-white font-semibold">{remainingPackages}</div>
                                         </div>
                                         <div className="grid gap-1">
-                                            <span className="text-xs text-blue-600">إجمالي رسوم الأرضية</span>
-                                            <div className="p-2 px-3 rounded-lg border bg-white font-semibold">{formatCurrency(aggregatedData.ground_fees)}</div>
+                                            <span className="text-xs text-blue-600">الوزن</span>
+                                            <div className="p-2 px-3 rounded-lg border bg-white font-semibold">{formatWeight(selectedInShipment.weight)}</div>
+                                        </div>
+                                        <div className="grid gap-1">
+                                            <span className="text-xs text-blue-600">رسوم الأرضية</span>
+                                            <div className="p-2 px-3 rounded-lg border bg-white font-semibold">{formatCurrency(selectedInShipment.ground_fees)}</div>
                                         </div>
                                     </div>
 
                                     {/* رقم البوليصة وتاريخ الوصول */}
-                                    <div className="flex gap-4">
+                                    <div className="flex gap-4 items-start">
                                         <div className="grid gap-3 w-full">
                                             <Label>رقم البوليصة *</Label>
                                             <input {...register("bill_number")} placeholder="ادخل رقم البوليصة" />
@@ -422,7 +353,7 @@ const ExportShipment = ({ children }) => {
                                     </div>
 
                                     {/* رقم البوليصة الفرعية واسم الشركة */}
-                                    <div className="flex gap-4">
+                                    <div className="flex gap-4 items-start">
                                         <div className="grid gap-3 items-start w-full">
                                             <Label>رقم البوليصة الفرعية *</Label>
                                             <input {...register("sub_bill_number")} placeholder="ادخل رقم البوليصة الفرعية" />
@@ -548,11 +479,14 @@ const ExportShipment = ({ children }) => {
                                     </div>
 
                                     {/* عدد الطرود والوزن */}
-                                    <div className="flex gap-4">
+                                    <div className="flex gap-4 items-start">
                                         <div className="grid gap-3 w-full">
                                             <Label>عدد الطرود *</Label>
-                                            <input type="number" {...register("package_count")} placeholder="ادخل عدد الطرود" min="1" />
+                                            <input type="number" {...register("package_count")} placeholder="ادخل عدد الطرود" min="1" max={remainingPackages || undefined} />
                                             {errors.package_count && <span className="text-sm text-rose-400">{errors.package_count.message}</span>}
+                                            {remainingPackages > 0 && (
+                                                <span className="text-xs text-neutral-500">لا يمكن أن يتجاوز المتبقي: {remainingPackages}</span>
+                                            )}
                                         </div>
                                         <div className="grid gap-3 w-full">
                                             <Label>الوزن (كجم) *</Label>
@@ -681,7 +615,7 @@ const ExportShipment = ({ children }) => {
                                     </div>
 
                                     {/* رسوم الدفع والشهادة الجمركية */}
-                                    <div className="flex gap-4">
+                                    <div className="flex gap-4 items-start">
                                         <div className="grid gap-3 w-full">
                                             <Label>رسوم الدفع *</Label>
                                             <input type="number" step="0.01" {...register("payment_fees")} placeholder="ادخل رسوم الدفع بالجنيه المصري" min="0" />
@@ -741,7 +675,7 @@ const ExportShipment = ({ children }) => {
                                     </div>
 
                                     {/* المستلم ورسوم الأرضية */}
-                                    <div className="flex gap-4">
+                                    <div className="flex gap-4 items-start">
                                         <div className="grid gap-3 w-full">
                                             <Label>المستلم *</Label>
                                             <input {...register("receiver_name")} placeholder="ادخل اسم المستلم النهائي" />
@@ -769,7 +703,7 @@ const ExportShipment = ({ children }) => {
                                 <Button disabled={loading} variant="outline" className="cursor-pointer">إلغاء</Button>
                             </DialogClose>
                             <Button
-                                disabled={loading || selectedInShipments.length === 0}
+                                disabled={loading}
                                 type="submit"
                                 className="cursor-pointer"
                                 onClick={onSubmit}
@@ -780,7 +714,7 @@ const ExportShipment = ({ children }) => {
                                         <span>تصدير ...</span>
                                     </>
                                 ) : (
-                                    <span>تصدير ({selectedInShipments.length})</span>
+                                    <span>تصدير</span>
                                 )}
                             </Button>
                         </DialogFooter>

@@ -94,45 +94,27 @@ const styles = StyleSheet.create({
 
 const headers = [
   "حالة صرف الشحنة",
-  "الشحنات الواردة المرتبطة",
   "رقم البوليصة",
   "رقم البوليصة الفرعية",
   "تاريخ الوصول",
   "اسم الشركة",
   "عدد الطرود",
+  "مصدر",
+  "المتبقي",
   "الوزن",
   "الجهة",
   "رسوم الدفع",
   "الشهادة الجمركية",
   "الحالة",
   "تاريخ الصرف",
+  "تاريخ التصدير",
   "المستلم",
-  "رسوم الأرضية"
+  "رسوم الأرضية",
 ]
 
-const renderInboundBadges = (inShipments = []) => {
-  if (!inShipments.length) {
-    return (
-      <View style={styles.badgeContainer}>
-        <Text style={styles.badgeText}>-</Text>
-      </View>
-    )
-  }
+// no linked badge anymore; report mirrors the table
 
-  return (
-    <View style={styles.badgeContainer}>
-      {inShipments.map((shipment) => (
-        <View key={shipment.id || `${shipment.bill_number}-${shipment.sub_bill_number}`} style={styles.badge}>
-          <Text style={styles.badgeText}>{shipment.bill_number || '-'}</Text>
-          <Text style={[styles.badgeText, { color: '#9ca3af' }]}>/</Text>
-          <Text style={styles.badgeText}>{shipment.sub_bill_number || '-'}</Text>
-        </View>
-      ))}
-    </View>
-  )
-}
-
-const OutShipmentsPDF = ({ data, title = "تقرير الشحنات الصادرة" }) => (
+const OutShipmentsPDF = ({ data, title = "الشحنات الواردة الغير مصدرة" }) => (
   <Document>
     <Page size="A4" orientation="landscape" style={styles.page}>
       <View style={styles.headerRow}>
@@ -154,7 +136,7 @@ const OutShipmentsPDF = ({ data, title = "تقرير الشحنات الصادر
           {headers.map((h, idx) => (
             <Text
               key={idx}
-              style={[styles.cell, styles.headerCell, h === "الشحنات الواردة المرتبطة" ? styles.wideCell : null]}
+              style={[styles.cell, styles.headerCell]}
             >
               {h}
             </Text>
@@ -164,18 +146,20 @@ const OutShipmentsPDF = ({ data, title = "تقرير الشحنات الصادر
         {data.map((row, rowIndex) => (
           <View style={styles.row} key={rowIndex}>
             <Text style={[styles.cell]}>{row.status ? "مكتملة" : "غير مكتملة"}</Text>
-            <View style={[styles.cell, styles.wideCell]}>{renderInboundBadges(row.in_shipments)}</View>
             <Text style={[styles.cell]}>{row.bill_number || '-'}</Text>
             <Text style={[styles.cell]}>{row.sub_bill_number || '-'}</Text>
             <Text style={[styles.cell]}>{row.arrival_date ? formatArabicDate(new Date(row.arrival_date)) : '-'}</Text>
             <Text style={[styles.cell]}>{row.company_name || '-'}</Text>
             <Text style={[styles.cell]}>{row.package_count || '-'}</Text>
+            <Text style={[styles.cell]}>{row.exported_count ?? '-'}</Text>
+            <Text style={[styles.cell]}>{row.remaining ?? '-'}</Text>
             <Text style={[styles.cell]}>{row.weight || '-'}</Text>
             <Text style={[styles.cell]}>{row.destination || '-'}</Text>
             <Text style={[styles.cell]}>{row.payment_fees || '-'}</Text>
             <Text style={[styles.cell]}>{row.customs_certificate || '-'}</Text>
             <Text style={[styles.cell, { fontSize: 5 }]} wrap={true}>{row.contract_status || '-'}</Text>
             <Text style={[styles.cell]}>{row.disbursement_date ? formatArabicDate(new Date(row.disbursement_date)) : '-'}</Text>
+            <Text style={[styles.cell]}>{row.export_date ? formatArabicDate(new Date(row.export_date)) : '-'}</Text>
             <Text style={[styles.cell]}>{row.receiver_name || '-'}</Text>
             <Text style={[styles.cell]}>{row.ground_fees || '-'}</Text>
           </View>

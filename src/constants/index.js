@@ -11,7 +11,7 @@ export const navLinks = [
         to: "/in-shipments"
     },
     {
-        name: "الشحنات الصادرة",
+        name: "تصدير الشحنات",
         iconName: "ArrowUpFromLine",
         to: "/out-shipments"
     },

@@ -8,7 +8,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { BadgeCheck, IdCard, Package, Weight, Building2, CalendarDays, FileText, User, Coins, Factory, ClipboardList, CheckCircle2, XCircle, ArrowDownToLine, ArrowUpFromLine } from "lucide-react"
+import { BadgeCheck, IdCard, Package, Weight, Building2, CalendarDays, FileText, User, Coins, Factory, ClipboardList, CheckCircle2, XCircle } from "lucide-react"
 import { formatCurrency, formatWeight, formatDate } from "../../utils"
 import { useState } from "react"
 
@@ -28,26 +28,25 @@ const ViewOutShipment = ({ item, children }) => {
     
     // Calculate status based on disbursement_date
     const status = item?.disbursement_date ? true : false
-    const inShipments = item?.in_shipments || []
+    const inShipment = item?.in_shipment || null
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 {children}
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[960px] [&_[data-slot='dialog-close']]:!right-[95%] max-h-[90vh] overflow-y-auto thin-scrollbar">
+            <DialogContent className="sm:max-w-[860px] [&_[data-slot='dialog-close']]:!right-[95%] max-h-[90vh] overflow-y-auto thin-scrollbar">
                 <DialogHeader className="!text-start">
                     <div className="flex items-center gap-2">
                         <ClipboardList className="text-sky-600" />
                         <DialogTitle>تفاصيل الشحنة الصادرة</DialogTitle>
                     </div>
                     <DialogDescription>
-                        معاينة البيانات كاملة للشحنة الصادرة والشحنات الواردة المرتبطة بها
+                        معاينة البيانات كاملة للشحنة المحددة
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="grid gap-6">
-                    {/* Status Alert Box */}
+                <div className="grid gap-4">
                     {status ? (
                         <div className="flex items-center gap-3 p-4 rounded-xl border border-green-200 bg-green-50">
                             <div className="flex-shrink-0 w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
@@ -70,76 +69,39 @@ const ViewOutShipment = ({ item, children }) => {
                         </div>
                     )}
 
-                    {/* OutShipment Section */}
-                    <div className="grid gap-4">
-                        <div className="flex items-center gap-2 p-3 bg-primary-50 border border-primary-200 rounded-xl">
-                            <ArrowUpFromLine className="text-primary-600" size={20} />
-                            <h3 className="text-lg font-semibold text-primary-900">بيانات الشحنة الصادرة</h3>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                            <Field label="رقم البوليصة" value={item?.bill_number || '-'} icon={<IdCard className="size-4" />} />
-                            <Field label="رقم البوليصة الفرعية" value={item?.sub_bill_number} icon={<IdCard className="size-4" />} />
-                            <Field label="تاريخ الوصول" value={item?.arrival_date ? formatDate(item.arrival_date) : '-'} icon={<CalendarDays className="size-4" />} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <Field label="رقم البوليصة" value={item?.bill_number || '-'} icon={<IdCard className="size-4" />} />
+                        <Field label="رقم البوليصة الفرعية" value={item?.sub_bill_number} icon={<IdCard className="size-4" />} />
+                        <Field label="تاريخ الوصول" value={item?.arrival_date ? formatDate(item.arrival_date) : '-'} icon={<CalendarDays className="size-4" />} />
 
-                            <Field label="اسم الشركة" value={item?.company_name} icon={<Building2 className="size-4" />} />
-                            <Field label="عدد الطرود" value={item?.package_count} icon={<Package className="size-4" />} />
-                            <Field label="الوزن" value={formatWeight(item?.weight)} icon={<Weight className="size-4" />} />
+                        <Field label="اسم الشركة" value={item?.company_name} icon={<Building2 className="size-4" />} />
+                        <Field label="عدد الطرود" value={item?.package_count} icon={<Package className="size-4" />} />
+                        <Field label="الوزن" value={formatWeight(item?.weight)} icon={<Weight className="size-4" />} />
 
-                            <Field label="الجهة" value={item?.destination} icon={<Factory className="size-4" />} />
-                            <Field label="رسوم الدفع" value={formatCurrency(item?.payment_fees)} icon={<Coins className="size-4" />} />
-                            <Field label="الشهادة الجمركية" value={item?.customs_certificate} icon={<FileText className="size-4" />} />
+                        <Field label="الجهة" value={item?.destination} icon={<Factory className="size-4" />} />
+                        <Field label="رسوم الدفع" value={formatCurrency(item?.payment_fees)} icon={<Coins className="size-4" />} />
+                        <Field label="الشهادة الجمركية" value={item?.customs_certificate} icon={<FileText className="size-4" />} />
 
-                            <Field label="عقد / تصديق / حالة" value={item?.contract_status} icon={<BadgeCheck className="size-4" />} />
-                            <Field label="تاريخ الصرف" value={item?.disbursement_date ? formatDate(item.disbursement_date) : '-'} icon={<CalendarDays className="size-4" />} />
-                            <Field label="المستلم" value={item?.receiver_name} icon={<User className="size-4" />} />
+                        <Field label="عقد / تصديق / حالة" value={item?.contract_status} icon={<BadgeCheck className="size-4" />} />
+                        <Field label="تاريخ الصرف" value={item?.disbursement_date ? formatDate(item.disbursement_date) : '-'} icon={<CalendarDays className="size-4" />} />
+                        <Field label="المستلم" value={item?.receiver_name} icon={<User className="size-4" />} />
 
-                            <Field label="رسوم الأرضية" value={formatCurrency(item?.ground_fees)} icon={<Coins className="size-4" />} />
-                            <Field label="تاريخ التصدير" value={item?.export_date ? formatDate(item.export_date) : '-'} icon={<CalendarDays className="size-4" />} />
-                            <Field label="تاريخ الإنشاء" value={item?.created_at ? new Date(item.created_at).toLocaleString('ar-EG') : '-'} icon={<CalendarDays className="size-4" />} />
+                        <Field label="رسوم الأرضية" value={formatCurrency(item?.ground_fees)} icon={<Coins className="size-4" />} />
+                        <Field label="تاريخ التصدير" value={item?.export_date ? formatDate(item.export_date) : '-'} icon={<CalendarDays className="size-4" />} />
+                        <Field label="تاريخ الإنشاء" value={item?.created_at ? new Date(item.created_at).toLocaleString('ar-EG') : '-'} icon={<CalendarDays className="size-4" />} />
 
-                            <Field label="آخر تحديث" value={item?.updated_at ? new Date(item.updated_at).toLocaleString('ar-EG') : '-'} icon={<CalendarDays className="size-4" />} />
-                        </div>
+                        <Field label="آخر تحديث" value={item?.updated_at ? new Date(item.updated_at).toLocaleString('ar-EG') : '-'} icon={<CalendarDays className="size-4" />} />
                     </div>
 
-                    {/* InShipments Section */}
-                    {inShipments.length > 0 && (
-                        <div className="grid gap-4">
-                            <div className="flex items-center gap-2 p-3 bg-sky-50 border border-sky-200 rounded-xl">
-                                <ArrowDownToLine className="text-sky-600" size={20} />
-                                <h3 className="text-lg font-semibold text-sky-900">
-                                    الشحنات الواردة المرتبطة ({inShipments.length})
-                                </h3>
-                            </div>
-                            <div className="grid gap-4">
-                                {inShipments.map((inShipment, index) => (
-                                    <div key={inShipment.id || index} className="border rounded-xl p-4 bg-sky-50/50">
-                                        <h4 className="font-semibold mb-3 text-sky-900">شحنة واردة #{index + 1}</h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                            <Field label="رقم البوليصة" value={inShipment.bill_number || '-'} icon={<IdCard className="size-4" />} />
-                                            <Field label="رقم البوليصة الفرعية" value={inShipment.sub_bill_number} icon={<IdCard className="size-4" />} />
-                                            <Field label="تاريخ الوصول" value={inShipment.arrival_date ? formatDate(inShipment.arrival_date) : '-'} icon={<CalendarDays className="size-4" />} />
+                    {inShipment && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            <Field label="(واردة) رقم البوليصة" value={inShipment.bill_number || '-'} icon={<IdCard className="size-4" />} />
+                            <Field label="(واردة) رقم البوليصة الفرعية" value={inShipment.sub_bill_number} icon={<IdCard className="size-4" />} />
+                            <Field label="(واردة) تاريخ الوصول" value={inShipment.arrival_date ? formatDate(inShipment.arrival_date) : '-'} icon={<CalendarDays className="size-4" />} />
 
-                                            <Field label="اسم الشركة" value={inShipment.company_name} icon={<Building2 className="size-4" />} />
-                                            <Field label="عدد الطرود" value={inShipment.package_count} icon={<Package className="size-4" />} />
-                                            <Field label="الوزن" value={formatWeight(inShipment.weight)} icon={<Weight className="size-4" />} />
-
-                                            <Field label="الجهة" value={inShipment.destination} icon={<Factory className="size-4" />} />
-                                            <Field label="رسوم الدفع" value={formatCurrency(inShipment.payment_fees)} icon={<Coins className="size-4" />} />
-                                            <Field label="الشهادة الجمركية" value={inShipment.customs_certificate} icon={<FileText className="size-4" />} />
-
-                                            <Field label="عقد / تصديق / حالة" value={inShipment.contract_status} icon={<BadgeCheck className="size-4" />} />
-                                            <Field label="تاريخ الصرف" value={inShipment.disbursement_date ? formatDate(inShipment.disbursement_date) : '-'} icon={<CalendarDays className="size-4" />} />
-                                            <Field label="المستلم" value={inShipment.receiver_name} icon={<User className="size-4" />} />
-
-                                            <Field label="رسوم الأرضية" value={formatCurrency(inShipment.ground_fees)} icon={<Coins className="size-4" />} />
-                                            <Field label="تم التصدير" value={inShipment.export ? "نعم" : "لا"} icon={<CheckCircle2 className="size-4" />} />
-                                            <Field label="تاريخ الإنشاء" value={inShipment.created_at ? new Date(inShipment.created_at).toLocaleString('ar-EG') : '-'} icon={<CalendarDays className="size-4" />} />
-
-                                            <Field label="آخر تحديث" value={inShipment.updated_at ? new Date(inShipment.updated_at).toLocaleString('ar-EG') : '-'} icon={<CalendarDays className="size-4" />} />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                            <Field label="(واردة) اسم الشركة" value={inShipment.company_name} icon={<Building2 className="size-4" />} />
+                            <Field label="(واردة) عدد الطرود" value={inShipment.package_count} icon={<Package className="size-4" />} />
+                            <Field label="(واردة) المُصَدَّر" value={inShipment.exported_count || 0} icon={<Package className="size-4" />} />
                         </div>
                     )}
                 </div>

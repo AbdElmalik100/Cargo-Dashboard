@@ -2,7 +2,6 @@ import AddInShipment from "../InShipments/AddInShipment"
 import { Input } from "@/components/ui/input"
 import ShipmentFilter from "./ShipmentFilter"
 import ShipmentReportExport from "./ShipmentReportExport"
-import ExportShipment from "../OutShipments/ExportShipment"
 
 const ShipmentTableToolbar = ({ table, data, shipmentType = "in" }) => {
     const filteredData = table.getState().columnFilters.length === 0
@@ -11,7 +10,7 @@ const ShipmentTableToolbar = ({ table, data, shipmentType = "in" }) => {
 
     const reportTitle = shipmentType === "in"
         ? "تقرير الشحنات الواردة"
-        : "تقرير الشحنات الصادرة"
+        : "الشحنات الواردة الغير مصدرة"
 
     return (
         <div className="flex items-center gap-4 justify-between py-4">
@@ -25,7 +24,6 @@ const ShipmentTableToolbar = ({ table, data, shipmentType = "in" }) => {
                 <ShipmentFilter table={table} data={data} />
                 <ShipmentReportExport data={filteredData} title={reportTitle} shipmentType={shipmentType} />
                 {shipmentType === "in" && <AddInShipment />}
-                {shipmentType === "out" && <ExportShipment />}
             </div>
         </div>
     )

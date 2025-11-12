@@ -5,9 +5,8 @@ import {
     getSortedRowModel,
     useReactTable,
 } from "@tanstack/react-table"
-import { ArrowUpDown, MoreHorizontal, CheckCircle2, XCircle, Eye, Pencil, Trash2 } from "lucide-react"
+import { ArrowUpDown, MoreHorizontal, CheckCircle2, XCircle, Eye, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -16,54 +15,25 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useMemo, useState, useEffect } from "react"
 import DataTable from "../DataTable"
-import ViewOutShipment from "./ViewOutShipment"
+import ViewShipment from "../Shipments/ViewShipment"
 import { useSelector, useDispatch } from "react-redux"
-import { getAllOutShipments, deleteOutShipment, getOutShipmentsStats } from "../../store/slices/outShipmentsSlice"
+// Note: no out shipments fetched here; out shipments are handled in reports
 import { getShipments } from "../../store/slices/inShipmentsSlice"
 import { formatDate, formatCurrency, formatWeight } from "../../utils"
 import ExportShipment from "./ExportShipment"
-import EditOutShipment from "./EditOutShipment"
-import DeletePopup from "../DeletePopup"
 import ShipmentTableToolbar from "../Shipments/ShipmentTableToolbar"
+//
 
 
 const OutShipments = () => {
     const dispatch = useDispatch()
-    const { allShipments = [], loading } = useSelector(state => state.outShipments || {})
+    const { shipments: inShipments = [] } = useSelector(state => state.inShipments || {})
 
     useEffect(() => {
-        dispatch(getAllOutShipments())
+        dispatch(getShipments())
     }, [dispatch])
 
     const columns = useMemo(() => [
-        {
-            id: "select",
-            header: ({ table }) => (
-                <div className="text-start ps-2">
-                    <Checkbox
-                        className="cursor-pointer"
-                        checked={
-                            table.getIsAllPageRowsSelected() ||
-                            (table.getIsSomePageRowsSelected() && "indeterminate")
-                        }
-                        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-                        aria-label="Select all"
-                    />
-                </div>
-            ),
-            cell: ({ row }) => (
-                <div className="text-start ps-2">
-                    <Checkbox
-                        className="cursor-pointer"
-                        checked={row.getIsSelected()}
-                        onCheckedChange={(value) => row.toggleSelected(!!value)}
-                        aria-label="Select row"
-                    />
-                </div>
-            ),
-            enableSorting: false,
-            enableHiding: false,
-        },
         {
             accessorKey: "status",
             header: () => <div className="text-start">حالة صرف الشحنة</div>,
@@ -80,30 +50,7 @@ const OutShipments = () => {
                 );
             },
         },
-        {
-            id: "in_shipments",
-            header: () => <div className="text-start">الشحنات الواردة</div>,
-            cell: ({ row }) => {
-                const shipments = row.original?.in_shipments || []
-                if (!shipments.length) {
-                    return <div className="text-start text-neutral-500">-</div>
-                }
-                return (
-                    <div className="flex flex-wrap gap-1 justify-start">
-                        {shipments.map(shipment => (
-                            <span
-                                key={shipment.id}
-                                className="inline-flex items-center gap-1 rounded-full bg-neutral-100 text-neutral-700 border border-neutral-200 px-3 py-1 text-xs"
-                            >
-                                <span>{shipment.bill_number || '-'}</span>
-                                <span className="text-neutral-400">/</span>
-                                <span>{shipment.sub_bill_number || '-'}</span>
-                            </span>
-                        ))}
-                    </div>
-                )
-            },
-        },
+        // Remove linked inshipment badge. We display inshipment data directly in the row.
         {
             accessorKey: "export_date",
             header: ({ column }) => (
@@ -172,6 +119,14 @@ const OutShipments = () => {
                     </Button>
                 </div>
             ),
+        },
+        {
+            accessorKey: "exported_count",
+            header: () => <div className="text-start">مصدر</div>,
+        },
+        {
+            accessorKey: "remaining",
+            header: () => <div className="text-start">المتبقي</div>,
         },
         {
             accessorKey: "weight",
@@ -286,44 +241,50 @@ const OutShipments = () => {
         {
             id: "actions",
             enableHiding: false,
-            cell: ({ row }) => {
-                const item = row.original
-                return (
-                    <DropdownMenu dir="rtl">
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0 !ring-0">
-                                <MoreHorizontal />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <ViewOutShipment item={row.original}>
-                                <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                                    <Eye />
-                                    <span>عرض</span>
-                                </DropdownMenuItem>
-                            </ViewOutShipment>
-                            <EditOutShipment item={item}>
-                                <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                                    <Pencil />
-                                    <span>تعديل</span>
-                                </DropdownMenuItem>
-                            </EditOutShipment>
-                            <DeletePopup item={item} delFn={deleteOutShipment} onSuccess={() => {
-                                dispatch(getShipments())
-                                dispatch(getOutShipmentsStats())
-                            }}>
-                                <DropdownMenuItem
-                                    variant="destructive"
-                                    onSelect={e => e.preventDefault()}
-                                >
-                                    <Trash2 />
-                                    <span>حذف</span>
-                                </DropdownMenuItem>
-                            </DeletePopup>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                );
-            },
+            cell: ({ row }) => (
+                <DropdownMenu dir="rtl">
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0 !ring-0">
+                            <MoreHorizontal />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        {row.original?.__pending_in__ ? (
+                            <>
+                                <ViewShipment item={row.original.in_shipment}>
+                                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                        <Eye />
+                                        <span>عرض</span>
+                                    </DropdownMenuItem>
+                                </ViewShipment>
+                                <ExportShipment inShipment={row.original.in_shipment}>
+                                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                        <Send />
+                                        <span>تصدير</span>
+                                    </DropdownMenuItem>
+                                </ExportShipment>
+                            </>
+                        ) : (
+                            <>
+                                <ViewShipment item={row.original}>
+                                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                        <Eye />
+                                        <span>عرض</span>
+                                    </DropdownMenuItem>
+                                </ViewShipment>
+                                {row.original?.in_shipment && (
+                                    <ExportShipment inShipment={row.original.in_shipment}>
+                                        <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                            <Send />
+                                            <span>تصدير</span>
+                                        </DropdownMenuItem>
+                                    </ExportShipment>
+                                )}
+                            </>
+                        )}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            ),
         },
     ], [dispatch])
 
@@ -338,8 +299,40 @@ const OutShipments = () => {
     const [rowSelection, setRowSelection] = useState({})
     const [globalFilter, setGlobalFilter] = useState('')
 
+    // Build synthetic rows for InShipments that still have remaining packages
+    const pendingInRows = useMemo(() => {
+        return (inShipments || [])
+            .filter(s => Number(s.exported_count || 0) < Number(s.package_count || 0))
+            .map(s => ({
+                // Mark as pending in-shipment row
+                __pending_in__: true,
+                id: `pending-in-${s.id}`,
+                // Map fields to match table columns
+                status: s.status,
+                in_shipment: s,
+                export_date: null,
+                bill_number: s.bill_number,
+                sub_bill_number: s.sub_bill_number,
+                arrival_date: s.arrival_date,
+                company_name: s.company_name,
+                package_count: s.package_count,
+                exported_count: s.exported_count || 0,
+                remaining: Math.max(0, Number(s.package_count || 0) - Number(s.exported_count || 0)),
+                weight: s.weight,
+                destination: s.destination,
+                payment_fees: s.payment_fees,
+                customs_certificate: s.customs_certificate,
+                contract_status: s.contract_status,
+                disbursement_date: s.disbursement_date,
+                receiver_name: s.receiver_name,
+                ground_fees: s.ground_fees,
+            }))
+    }, [inShipments])
+
+    const tableData = useMemo(() => pendingInRows, [pendingInRows])
+
     const table = useReactTable({
-        data: allShipments,
+        data: tableData,
         columns,
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
@@ -355,7 +348,6 @@ const OutShipments = () => {
             sorting,
             columnFilters,
             columnVisibility,
-            rowSelection,
             globalFilter,
         },
     })
@@ -363,9 +355,9 @@ const OutShipments = () => {
     return (
         <div className='border p-4 border-neutral-300 mt-8 rounded-2xl bg-white'>
             <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">الشحنات الصادرة</h2>
+                <h2 className="text-xl font-semibold">تصدير الشحنات</h2>
             </div>
-            <ShipmentTableToolbar table={table} data={allShipments} shipmentType="out" />
+            <ShipmentTableToolbar table={table} data={tableData} shipmentType="out" />
             <DataTable table={table} columns={columns} />
         </div>
     )

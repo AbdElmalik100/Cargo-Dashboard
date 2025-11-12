@@ -2,7 +2,8 @@ import { useDispatch, useSelector } from 'react-redux'
 import OutShipments from '../components/OutShipments/OutShipments'
 import Stats from '../components/Stats'
 import { useEffect } from 'react'
-import { getAllOutShipments, getOutShipmentsStats } from '../store/slices/outShipmentsSlice'
+import { getOutShipmentsStats } from '../store/slices/outShipmentsSlice'
+import { getShipments } from '../store/slices/inShipmentsSlice'
 import { me } from '../store/slices/userSlice'
 
 const OutShipmentsPage = () => {
@@ -10,7 +11,7 @@ const OutShipmentsPage = () => {
     const { shipmentsStats } = useSelector(state => state.outShipments)
 
     useEffect(() => {
-        dispatch(getAllOutShipments())
+        dispatch(getShipments())
         dispatch(getOutShipmentsStats())
         dispatch(me())
     }, [dispatch])
