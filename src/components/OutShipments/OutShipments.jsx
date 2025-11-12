@@ -5,7 +5,7 @@ import {
     getSortedRowModel,
     useReactTable,
 } from "@tanstack/react-table"
-import { ArrowUpDown, MoreHorizontal, CheckCircle2, XCircle } from "lucide-react"
+import { ArrowUpDown, MoreHorizontal, CheckCircle2, XCircle, Eye, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -15,24 +15,26 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useMemo, useState, useEffect } from "react"
-import { Eye, Send } from "lucide-react"
 import DataTable from "../DataTable"
 import CargoTableToolbar from "../Cargos/CargoTableToolbar"
 import ViewOutShipment from "./ViewOutShipment"
 import { useSelector, useDispatch } from "react-redux"
-import { getOutShipments } from "../../store/slices/outShipmentsSlice"
+import { getAllOutShipments, deleteOutShipment, getOutShipmentsStats } from "../../store/slices/outShipmentsSlice"
+import { getShipments } from "../../store/slices/inShipmentsSlice"
 import { formatDate, formatCurrency, formatWeight } from "../../utils"
 import ExportShipment from "./ExportShipment"
+import EditOutShipment from "./EditOutShipment"
+import DeletePopup from "../DeletePopup"
 
 
 const OutShipments = () => {
     const dispatch = useDispatch()
-    const { shipments = [], loading } = useSelector(state => state.outShipments || {})
-    
+    const { allShipments = [], loading } = useSelector(state => state.outShipments || {})
+
     useEffect(() => {
-        dispatch(getOutShipments())
+        dispatch(getAllOutShipments())
     }, [dispatch])
-    
+
     const columns = useMemo(() => [
         {
             id: "select",
@@ -79,17 +81,47 @@ const OutShipments = () => {
             },
         },
         {
-            accessorKey: "export",
-            header: () => <div className="text-start">تصدير</div>,
+            id: "in_shipments",
+            header: () => <div className="text-start">الشحنات الواردة</div>,
             cell: ({ row }) => {
-                const exported = row.original?.export ?? row.getValue("export");
+                const shipments = row.original?.in_shipments || []
+                if (!shipments.length) {
+                    return <div className="text-start text-neutral-500">-</div>
+                }
+                return (
+                    <div className="flex flex-wrap gap-1 justify-start">
+                        {shipments.map(shipment => (
+                            <span
+                                key={shipment.id}
+                                className="inline-flex items-center gap-1 rounded-full bg-neutral-100 text-neutral-700 border border-neutral-200 px-3 py-1 text-xs"
+                            >
+                                <span>{shipment.bill_number || '-'}</span>
+                                <span className="text-neutral-400">/</span>
+                                <span>{shipment.sub_bill_number || '-'}</span>
+                            </span>
+                        ))}
+                    </div>
+                )
+            },
+        },
+        {
+            accessorKey: "export_date",
+            header: ({ column }) => (
+                <div className="text-start">
+                    <Button
+                        variant="ghost"
+                        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                    >
+                        تاريخ التصدير
+                        <ArrowUpDown />
+                    </Button>
+                </div>
+            ),
+            cell: ({ row }) => {
+                const date = row.getValue("export_date");
                 return (
                     <div className="text-start">
-                        {exported ? (
-                            <CheckCircle2 className="text-green-500" size={20} />
-                        ) : (
-                            <XCircle className="text-red-500" size={20} />
-                        )}
+                        {date ? formatDate(date) : '-'}
                     </div>
                 );
             },
@@ -122,7 +154,7 @@ const OutShipments = () => {
                 );
             },
         },
-        
+
         {
             accessorKey: "company_name",
             header: () => <div className="text-start">اسم الشركة</div>,
@@ -181,7 +213,7 @@ const OutShipments = () => {
                 );
             },
         },
-        
+
         {
             accessorKey: "disbursement_date",
             header: ({ column }) => (
@@ -250,7 +282,7 @@ const OutShipments = () => {
             header: () => <div className="text-start">رسوم الأرضية</div>,
             cell: ({ row }) => <div className="text-start">{formatCurrency(row.getValue("ground_fees"))}</div>,
         },
-        
+
         {
             id: "actions",
             enableHiding: false,
@@ -270,20 +302,30 @@ const OutShipments = () => {
                                     <span>عرض</span>
                                 </DropdownMenuItem>
                             </ViewOutShipment>
-                            {!item.export && (
-                                <ExportShipment item={item}>
-                                    <DropdownMenuItem onSelect={e => e.preventDefault()}>
-                                        <Send />
-                                        <span>تصدير</span>
-                                    </DropdownMenuItem>
-                                </ExportShipment>
-                            )}
+                            <EditOutShipment item={item}>
+                                <DropdownMenuItem onSelect={e => e.preventDefault()}>
+                                    <Pencil />
+                                    <span>تعديل</span>
+                                </DropdownMenuItem>
+                            </EditOutShipment>
+                            <DeletePopup item={item} delFn={deleteOutShipment} onSuccess={() => {
+                                dispatch(getShipments())
+                                dispatch(getOutShipmentsStats())
+                            }}>
+                                <DropdownMenuItem
+                                    variant="destructive"
+                                    onSelect={e => e.preventDefault()}
+                                >
+                                    <Trash2 />
+                                    <span>حذف</span>
+                                </DropdownMenuItem>
+                            </DeletePopup>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 );
             },
         },
-    ], [])
+    ], [dispatch])
 
     const [sorting, setSorting] = useState([
         {
@@ -297,7 +339,7 @@ const OutShipments = () => {
     const [globalFilter, setGlobalFilter] = useState('')
 
     const table = useReactTable({
-        data: shipments,
+        data: allShipments,
         columns,
         onSortingChange: setSorting,
         onColumnFiltersChange: setColumnFilters,
@@ -320,7 +362,10 @@ const OutShipments = () => {
 
     return (
         <div className='border p-4 border-neutral-300 mt-8 rounded-2xl bg-white'>
-            <CargoTableToolbar table={table} data={shipments} shipmentType="out" />
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">الشحنات الصادرة</h2>
+            </div>
+            <CargoTableToolbar table={table} data={allShipments} shipmentType="out" />
             <DataTable table={table} columns={columns} />
         </div>
     )

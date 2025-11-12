@@ -1,12 +1,13 @@
-import { useDispatch } from 'react-redux'
+import { useDispatch, useSelector } from 'react-redux'
 import InShipments from '../components/InShipments/InShipments'
 import Stats from '../components/Stats'
 import { useEffect } from 'react'
-import { getShipments, getShipmentsStats } from '../store/slices/inShipmentsSlice'
+import { getShipments, getInShipmentsStats } from '../store/slices/inShipmentsSlice'
 import { me } from '../store/slices/userSlice'
 
 const InShipmentsPage = () => {
     const dispatch = useDispatch()
+    const { inShipmentsStats } = useSelector(state => state.inShipments)
 
     useEffect(() => {
         const ws = new WebSocket(import.meta.env.VITE_WEBSOCKET_URL)
@@ -25,13 +26,13 @@ const InShipmentsPage = () => {
 
     useEffect(() => {
         dispatch(getShipments())
-        dispatch(getShipmentsStats())
+        dispatch(getInShipmentsStats())
         dispatch(me())
     }, [dispatch])
 
     return (
         <div className='content'>
-            <Stats />
+            <Stats shipmentsLabel={"اجمالي عدد الشحنات الواردة"} stats={inShipmentsStats} />
             <InShipments />
         </div>
     )

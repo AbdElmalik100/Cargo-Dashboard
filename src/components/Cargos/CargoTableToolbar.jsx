@@ -2,6 +2,7 @@ import AddInShipment from "../InShipments/AddInShipment"
 import { Input } from "@/components/ui/input"
 import CargoFilter from "./CargoFilter"
 import CargoReportExport from "./CargoReportExport"
+import ExportShipment from "../OutShipments/ExportShipment"
 
 
 const CargoTableToolbar = ({ table, data, shipmentType = "in" }) => {
@@ -27,6 +28,7 @@ const CargoTableToolbar = ({ table, data, shipmentType = "in" }) => {
                 <CargoFilter table={table} data={data} />
                 <CargoReportExport data={filteredData} title={reportTitle} />
                 {shipmentType === "in" && <AddInShipment />}
+                {shipmentType === "out" && <ExportShipment />}
             </div>
         </div>
     )

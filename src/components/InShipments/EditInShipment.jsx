@@ -15,7 +15,7 @@ import { useForm } from "react-hook-form"
 import * as yup from 'yup'
 import { yupResolver } from "@hookform/resolvers/yup"
 import { toast } from "sonner"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import {
     Select,
     SelectContent,
@@ -29,6 +29,7 @@ import { getDestinations, createDestination, deleteDestination } from "../../sto
 import { getCompanies, createCompany, deleteCompany } from "../../store/slices/companiesSlice"
 import DeletePopup from "../DeletePopup"
 import { contractOptions, yearsOptions } from "../../constants"
+import axiosRequest from "../../plugins/axios"
 
 const EditInShipment = ({ item, children }) => {
     const dispatch = useDispatch()
@@ -36,7 +37,7 @@ const EditInShipment = ({ item, children }) => {
     const { loading } = useSelector(state => state.inShipments)
     const { destinations: destinationsList, loading: destinationsLoading } = useSelector(state => state.destinations)
     const { companies: companiesList = [], loading: companiesLoading = false } = useSelector(state => state.companies || { companies: [], loading: false })
-    
+
     // Destination state
     const [selectedDestination, setSelectedDestination] = useState("")
     const [showAddDestination, setShowAddDestination] = useState(false)
@@ -59,10 +60,41 @@ const EditInShipment = ({ item, children }) => {
         })
     }, [dispatch])
 
-    const validationSchema = yup.object({
+    // Create validation schema with item.id in closure
+    const validationSchema = useMemo(() => yup.object({
         bill_number: yup.string().required("هذا الحقل لا يمكن أن يكون فارغًا"),
         arrival_date: yup.string().required("هذا الحقل لا يمكن أن يكون فارغًا"),
-        sub_bill_number: yup.string().required("هذا الحقل لا يمكن أن يكون فارغًا"),
+        sub_bill_number: yup.string().required("هذا الحقل لا يمكن أن يكون فارغًا")
+            .test('unique', 'رقم البوليصة الفرعية موجود بالفعل', async function (value) {
+                if (!value) return true;
+                // When editing, exclude the current item from the uniqueness check
+                const currentItemId = item?.id;
+                try {
+                    const response = await axiosRequest.get(`api/in-shipments/?sub_bill_number=${encodeURIComponent(value)}`);
+                    if (!response.data || response.data.length === 0) {
+                        return true; // No conflict, value is unique
+                    }
+                    // Check if the found shipment is the current item being edited
+                    if (currentItemId) {
+                        const conflictingShipment = response.data.find(s => s.sub_bill_number === value && s.id === currentItemId);
+                        if (conflictingShipment) {
+                            return true; // It's the same item, so it's valid
+                        }
+                        // Check if any other shipment (not the current one) has this sub_bill_number
+                        const otherShipment = response.data.find(s => s.sub_bill_number === value && s.id !== currentItemId);
+                        if (otherShipment) {
+                            return false; // Another shipment has this sub_bill_number
+                        }
+                    } else {
+                        // If no currentItemId, any match is a conflict
+                        return false;
+                    }
+                    return true;
+                } catch (error) {
+                    // If error, let backend handle it
+                    return true;
+                }
+            }),
         company_name: yup.string().required("هذا الحقل لا يمكن أن يكون فارغًا"),
         package_count: yup.number().required("هذا الحقل لا يمكن أن يكون فارغًا").min(1, "يجب أن يكون العدد أكبر من صفر"),
         weight: yup.number().required("هذا الحقل لا يمكن أن يكون فارغًا").min(0, "يجب أن يكون الوزن أكبر من أو يساوي صفر"),
@@ -77,12 +109,7 @@ const EditInShipment = ({ item, children }) => {
         disbursement_date: yup.string().nullable(),
         receiver_name: yup.string().required("هذا الحقل لا يمكن أن يكون فارغًا"),
         ground_fees: yup.number().required("هذا الحقل لا يمكن أن يكون فارغًا").min(0, "يجب أن تكون الرسوم أكبر من أو تساوي صفر"),
-        export: yup.boolean(),
-        export_date: yup.string().nullable().when('export', {
-            is: true,
-            then: (schema) => schema.required("تاريخ التصدير مطلوب")
-        }),
-    })
+    }), [item?.id])
 
     const { register, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm({
         resolver: yupResolver(validationSchema),
@@ -104,8 +131,6 @@ const EditInShipment = ({ item, children }) => {
             disbursement_date: "",
             receiver_name: "",
             ground_fees: "",
-            export: false,
-            export_date: "",
         },
     })
 
@@ -172,7 +197,7 @@ const EditInShipment = ({ item, children }) => {
     const filteredCompanies = companiesList.filter(company =>
         company.name && company.name.toLowerCase().includes(companySearchTerm.toLowerCase())
     )
-    
+
     const onSubmit = handleSubmit(async (formData) => {
         // Validate destination is selected
         if (!selectedDestination) {
@@ -191,10 +216,8 @@ const EditInShipment = ({ item, children }) => {
             destination: selectedDestination,
             contract_status: `${formData.contract_status.contract} / ${formData.contract_status.ratification} / ${formData.contract_status.status}`,
             disbursement_date: formData.disbursement_date || null,
-            export: !!formData.export,
-            export_date: formData.export ? (formData.export_date || null) : null,
         }
-        
+
         const response = await dispatch(updateShipment({ id: item.id, updatedData: finalData }))
         if (updateShipment.fulfilled.match(response)) {
             toast.success("تم تحديث الشحنة بنجاح")
@@ -231,8 +254,6 @@ const EditInShipment = ({ item, children }) => {
                 disbursement_date: formatDate(item.disbursement_date),
                 receiver_name: item.receiver_name || "",
                 ground_fees: item.ground_fees || "",
-                export: !!item.export,
-                export_date: formatDate(item.export_date),
             })
             setSelectedDestination(item.destination || "")
             setSelectedCompany(item.company_name || "")
@@ -255,70 +276,204 @@ const EditInShipment = ({ item, children }) => {
 
     return (
         <>
-        <Dialog open={open} onOpenChange={setOpen}>
-            <form>
-                <DialogTrigger asChild>
-                    {children}
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[725px] [&_[data-slot='dialog-close']]:!right-[95%] max-h-[90vh] overflow-y-auto thin-scrollbar">
-                    <DialogHeader className="!text-start !py-2">
-                        <DialogTitle>تعديل الشحنة</DialogTitle>
-                        <DialogDescription>
-                            يمكنك تعديل بيانات الشحنة من هنا، قم بتعديل البيانات ثم اضغط على زر تعديل.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 p-1">
-                        {/* رقم البوليصة وتاريخ الوصول */}
-                        <div className="flex gap-4">
-                            <div className="grid gap-3 w-full">
-                                <Label>رقم البوليصة *</Label>
-                                <input {...register("bill_number")} placeholder="ادخل رقم البوليصة" />
-                                {errors.bill_number && <span className="text-sm text-rose-400">{errors.bill_number.message}</span>}
+            <Dialog open={open} onOpenChange={setOpen}>
+                <form>
+                    <DialogTrigger asChild>
+                        {children}
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[725px] [&_[data-slot='dialog-close']]:!right-[95%] max-h-[90vh] overflow-y-auto thin-scrollbar">
+                        <DialogHeader className="!text-start !py-2">
+                            <DialogTitle>تعديل الشحنة</DialogTitle>
+                            <DialogDescription>
+                                يمكنك تعديل بيانات الشحنة من هنا، قم بتعديل البيانات ثم اضغط على زر تعديل.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 p-1">
+                            {/* رقم البوليصة وتاريخ الوصول */}
+                            <div className="flex gap-4">
+                                <div className="grid gap-3 w-full">
+                                    <Label>رقم البوليصة *</Label>
+                                    <input {...register("bill_number")} placeholder="ادخل رقم البوليصة" />
+                                    {errors.bill_number && <span className="text-sm text-rose-400">{errors.bill_number.message}</span>}
+                                </div>
+                                <div className="grid gap-3 w-full">
+                                    <Label>تاريخ الوصول *</Label>
+                                    <input type="date" {...register("arrival_date")} />
+                                    {errors.arrival_date && <span className="text-sm text-rose-400">{errors.arrival_date.message}</span>}
+                                </div>
                             </div>
-                            <div className="grid gap-3 w-full">
-                                <Label>تاريخ الوصول *</Label>
-                                <input type="date" {...register("arrival_date")} />
-                                {errors.arrival_date && <span className="text-sm text-rose-400">{errors.arrival_date.message}</span>}
-                            </div>
-                        </div>
 
-                        {/* رقم البوليصة الفرعية واسم الشركة */}
-                        <div className="flex gap-4">
-                            <div className="grid gap-3 items-start w-full">
-                                <Label>رقم البوليصة الفرعية *</Label>
-                                <input {...register("sub_bill_number")} placeholder="ادخل رقم البوليصة الفرعية" />
-                                {errors.sub_bill_number && <span className="text-sm text-rose-400">{errors.sub_bill_number.message}</span>}
+                            {/* رقم البوليصة الفرعية واسم الشركة */}
+                            <div className="flex gap-4">
+                                <div className="grid gap-3 items-start w-full">
+                                    <Label>رقم البوليصة الفرعية *</Label>
+                                    <input {...register("sub_bill_number")} placeholder="ادخل رقم البوليصة الفرعية" />
+                                    {errors.sub_bill_number && <span className="text-sm text-rose-400">{errors.sub_bill_number.message}</span>}
+                                </div>
+                                <div className="grid gap-3 w-full">
+                                    <Label className="text-sm font-semibold text-neutral-700 flex items-center gap-2">
+                                        <span>اسم الشركة *</span>
+                                    </Label>
+
+                                    {showAddCompany && (
+                                        <div className="flex gap-2 p-4 bg-primary-50 border border-primary-200 rounded-xl">
+                                            <input
+                                                type="text"
+                                                placeholder="أدخل اسم الشركة الجديدة"
+                                                value={newCompany}
+                                                onChange={(e) => setNewCompany(e.target.value)}
+                                                className="flex-1 px-4 py-2 border border-primary-300 rounded-lg text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-white"
+                                            />
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                onClick={handleAddNewCompany}
+                                                disabled={!newCompany.trim() || companiesLoading}
+                                                className="bg-primary-600 hover:bg-primary-700 rounded-lg"
+                                            >
+                                                <Check size={16} />
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setShowAddCompany(false)
+                                                    setNewCompany("")
+                                                }}
+                                                className="border-primary-300 text-primary-600 hover:bg-primary-50 rounded-lg"
+                                            >
+                                                <X size={16} />
+                                            </Button>
+                                        </div>
+                                    )}
+
+                                    <Select value={selectedCompany} onValueChange={handleCompanyChange} onOpenChange={(open) => {
+                                        if (!open) {
+                                            setCompanySearchTerm("")
+                                        }
+                                    }}>
+                                        <SelectTrigger className="w-full text-right border-neutral-200 rounded-md focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-neutral-50 focus:bg-white px-4 py-3" dir="rtl">
+                                            <SelectValue placeholder="ابحث واختر الشركة">
+                                                {selectedCompany || "ابحث واختر الشركة"}
+                                            </SelectValue>
+                                        </SelectTrigger>
+                                        <SelectContent
+                                            className="max-h-[300px] text-right"
+                                            dir="rtl"
+                                        >
+                                            <div className="p-2 border-b">
+                                                <input
+                                                    type="text"
+                                                    placeholder="ابحث في الشركات..."
+                                                    value={companySearchTerm}
+                                                    onChange={(e) => setCompanySearchTerm(e.target.value)}
+                                                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                                    onPointerDown={(e) => e.stopPropagation()}
+                                                    onMouseDown={(e) => e.stopPropagation()}
+                                                    onKeyDown={(e) => e.stopPropagation()}
+                                                    onFocus={(e) => e.stopPropagation()}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    autoFocus
+                                                />
+                                            </div>
+                                            <div className="max-h-[200px] overflow-y-auto">
+                                                {filteredCompanies.length > 0 ? (
+                                                    <>
+                                                        {filteredCompanies.map((company) => (
+                                                            <SelectItem key={company.id} value={company.name} className="text-right" dir="rtl">
+                                                                <div className="flex items-center justify-between w-full gap-2">
+                                                                    <button
+                                                                        type="button"
+                                                                        className="text-red-500 hover:text-red-700 p-1 rounded flex-shrink-0"
+                                                                        title="حذف الشركة"
+                                                                        onPointerDown={(e) => {
+                                                                            e.preventDefault()
+                                                                            e.stopPropagation()
+                                                                            setDeleteCompanyDialog({ open: true, company })
+                                                                        }}
+                                                                    >
+                                                                        <X size={16} />
+                                                                    </button>
+                                                                    <span className="flex-1">{company.name}</span>
+                                                                </div>
+                                                            </SelectItem>
+                                                        ))}
+                                                        <SelectItem value="add_new" className="text-primary-600 font-medium hover:bg-primary-50 border-t">
+                                                            <div className="flex items-center gap-2">
+                                                                <Plus size={16} />
+                                                                إضافة شركة جديدة
+                                                            </div>
+                                                        </SelectItem>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <div className="p-3 text-sm text-neutral-500 text-center">
+                                                            لا توجد نتائج للبحث
+                                                        </div>
+                                                        <SelectItem value="add_new" className="text-primary-600 font-medium hover:bg-primary-50 border-t">
+                                                            <div className="flex items-center gap-2">
+                                                                <Plus size={16} />
+                                                                إضافة شركة جديدة
+                                                            </div>
+                                                        </SelectItem>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </SelectContent>
+                                    </Select>
+                                    {errors.company_name && <span className="text-sm text-rose-400 flex items-center gap-1">
+                                        <AlertCircle size={14} />
+                                        {errors.company_name.message}
+                                    </span>}
+                                </div>
                             </div>
+
+                            {/* عدد الطرود والوزن */}
+                            <div className="flex gap-4">
+                                <div className="grid gap-3 w-full">
+                                    <Label>عدد الطرود *</Label>
+                                    <input type="number" {...register("package_count")} placeholder="ادخل عدد الطرود" min="1" />
+                                    {errors.package_count && <span className="text-sm text-rose-400">{errors.package_count.message}</span>}
+                                </div>
+                                <div className="grid gap-3 w-full">
+                                    <Label>الوزن (كجم) *</Label>
+                                    <input type="number" step="0.01" {...register("weight")} placeholder="ادخل وزن الشحنة بالكيلو" min="0" />
+                                    {errors.weight && <span className="text-sm text-rose-400">{errors.weight.message}</span>}
+                                </div>
+                            </div>
+
+                            {/* الجهة */}
                             <div className="grid gap-3 w-full">
-                                <Label className="text-sm font-semibold text-neutral-700 flex items-center gap-2">
-                                    <span>اسم الشركة *</span>
+                                <Label className="flex items-center gap-2">
+                                    الجهة *
                                 </Label>
-                                
-                                {showAddCompany && (
+
+                                {showAddDestination && (
                                     <div className="flex gap-2 p-4 bg-primary-50 border border-primary-200 rounded-xl">
-                                        <input 
-                                            type="text" 
-                                            placeholder="أدخل اسم الشركة الجديدة"
-                                            value={newCompany}
-                                            onChange={(e) => setNewCompany(e.target.value)}
+                                        <input
+                                            type="text"
+                                            placeholder="أدخل اسم الوجهة الجديدة"
+                                            value={newDestination}
+                                            onChange={(e) => setNewDestination(e.target.value)}
                                             className="flex-1 px-4 py-2 border border-primary-300 rounded-lg text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-white"
                                         />
-                                        <Button 
+                                        <Button
                                             type="button"
                                             size="sm"
-                                            onClick={handleAddNewCompany}
-                                            disabled={!newCompany.trim() || companiesLoading}
+                                            onClick={handleAddNewDestination}
+                                            disabled={!newDestination.trim()}
                                             className="bg-primary-600 hover:bg-primary-700 rounded-lg"
                                         >
                                             <Check size={16} />
                                         </Button>
-                                        <Button 
+                                        <Button
                                             type="button"
                                             variant="outline"
                                             size="sm"
                                             onClick={() => {
-                                                setShowAddCompany(false)
-                                                setNewCompany("")
+                                                setShowAddDestination(false)
+                                                setNewDestination("")
                                             }}
                                             className="border-primary-300 text-primary-600 hover:bg-primary-50 rounded-lg"
                                         >
@@ -326,27 +481,27 @@ const EditInShipment = ({ item, children }) => {
                                         </Button>
                                     </div>
                                 )}
-                                
-                                <Select value={selectedCompany} onValueChange={handleCompanyChange} onOpenChange={(open) => {
+
+                                <Select value={selectedDestination} onValueChange={handleDestinationChange} onOpenChange={(open) => {
                                     if (!open) {
-                                        setCompanySearchTerm("")
+                                        setDestinationSearchTerm("")
                                     }
                                 }}>
-                                    <SelectTrigger className="w-full text-right border-neutral-200 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-neutral-50 focus:bg-white px-4 py-3" dir="rtl">
-                                        <SelectValue placeholder="ابحث واختر الشركة">
-                                            {selectedCompany || "ابحث واختر الشركة"}
+                                    <SelectTrigger className="w-full text-right border-neutral-200 rounded-md focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-neutral-50 focus:bg-white px-4 py-3" dir="rtl">
+                                        <SelectValue placeholder="ابحث واختر الوجهة">
+                                            {selectedDestination || "ابحث واختر الوجهة"}
                                         </SelectValue>
                                     </SelectTrigger>
-                                    <SelectContent 
-                                        className="max-h-[300px] text-right" 
+                                    <SelectContent
+                                        className="max-h-[300px] text-right"
                                         dir="rtl"
                                     >
                                         <div className="p-2 border-b">
-                                            <input 
-                                                type="text" 
-                                                placeholder="ابحث في الشركات..."
-                                                value={companySearchTerm}
-                                                onChange={(e) => setCompanySearchTerm(e.target.value)}
+                                            <input
+                                                type="text"
+                                                placeholder="ابحث في الوجهات..."
+                                                value={destinationSearchTerm}
+                                                onChange={(e) => setDestinationSearchTerm(e.target.value)}
                                                 className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                                                 onPointerDown={(e) => e.stopPropagation()}
                                                 onMouseDown={(e) => e.stopPropagation()}
@@ -357,31 +512,31 @@ const EditInShipment = ({ item, children }) => {
                                             />
                                         </div>
                                         <div className="max-h-[200px] overflow-y-auto">
-                                            {filteredCompanies.length > 0 ? (
+                                            {filteredDestinations.length > 0 ? (
                                                 <>
-                                                    {filteredCompanies.map((company) => (
-                                                        <SelectItem key={company.id} value={company.name} className="text-right" dir="rtl">
+                                                    {filteredDestinations.map((destination) => (
+                                                        <SelectItem key={destination.id} value={destination.name} className="text-right" dir="rtl">
                                                             <div className="flex items-center justify-between w-full gap-2">
                                                                 <button
                                                                     type="button"
                                                                     className="text-red-500 hover:text-red-700 p-1 rounded flex-shrink-0"
-                                                                    title="حذف الشركة"
+                                                                    title="حذف الوجهة"
                                                                     onPointerDown={(e) => {
                                                                         e.preventDefault()
                                                                         e.stopPropagation()
-                                                                        setDeleteCompanyDialog({ open: true, company })
+                                                                        setDeleteDestinationDialog({ open: true, destination })
                                                                     }}
                                                                 >
                                                                     <X size={16} />
                                                                 </button>
-                                                                <span className="flex-1">{company.name}</span>
+                                                                <span className="flex-1">{destination.name}</span>
                                                             </div>
                                                         </SelectItem>
                                                     ))}
                                                     <SelectItem value="add_new" className="text-primary-600 font-medium hover:bg-primary-50 border-t">
                                                         <div className="flex items-center gap-2">
                                                             <Plus size={16} />
-                                                            إضافة شركة جديدة
+                                                            إضافة وجهة جديدة
                                                         </div>
                                                     </SelectItem>
                                                 </>
@@ -393,7 +548,7 @@ const EditInShipment = ({ item, children }) => {
                                                     <SelectItem value="add_new" className="text-primary-600 font-medium hover:bg-primary-50 border-t">
                                                         <div className="flex items-center gap-2">
                                                             <Plus size={16} />
-                                                            إضافة شركة جديدة
+                                                            إضافة وجهة جديدة
                                                         </div>
                                                     </SelectItem>
                                                 </>
@@ -401,295 +556,146 @@ const EditInShipment = ({ item, children }) => {
                                         </div>
                                     </SelectContent>
                                 </Select>
-                                {errors.company_name && <span className="text-sm text-rose-400 flex items-center gap-1">
+                                {errors.destination && <span className="text-sm text-rose-400 flex items-center gap-1">
                                     <AlertCircle size={14} />
-                                    {errors.company_name.message}
+                                    {errors.destination.message}
                                 </span>}
                             </div>
-                        </div>
 
-                        {/* عدد الطرود والوزن */}
-                        <div className="flex gap-4">
-                            <div className="grid gap-3 w-full">
-                                <Label>عدد الطرود *</Label>
-                                <input type="number" {...register("package_count")} placeholder="ادخل عدد الطرود" min="1" />
-                                {errors.package_count && <span className="text-sm text-rose-400">{errors.package_count.message}</span>}
-                            </div>
-                            <div className="grid gap-3 w-full">
-                                <Label>الوزن (كجم) *</Label>
-                                <input type="number" step="0.01" {...register("weight")} placeholder="ادخل وزن الشحنة بالكيلو" min="0" />
-                                {errors.weight && <span className="text-sm text-rose-400">{errors.weight.message}</span>}
-                            </div>
-                        </div>
-
-                        {/* الجهة */}
-                        <div className="grid gap-3 w-full">
-                            <Label className="flex items-center gap-2">
-                                الجهة *
-                            </Label>
-                            
-                            {showAddDestination && (
-                                <div className="flex gap-2 p-4 bg-primary-50 border border-primary-200 rounded-xl">
-                                    <input 
-                                        type="text" 
-                                        placeholder="أدخل اسم الوجهة الجديدة"
-                                        value={newDestination}
-                                        onChange={(e) => setNewDestination(e.target.value)}
-                                        className="flex-1 px-4 py-2 border border-primary-300 rounded-lg text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-white"
-                                    />
-                                    <Button 
-                                        type="button"
-                                        size="sm"
-                                        onClick={handleAddNewDestination}
-                                        disabled={!newDestination.trim()}
-                                        className="bg-primary-600 hover:bg-primary-700 rounded-lg"
-                                    >
-                                        <Check size={16} />
-                                    </Button>
-                                    <Button 
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => {
-                                            setShowAddDestination(false)
-                                            setNewDestination("")
-                                        }}
-                                        className="border-primary-300 text-primary-600 hover:bg-primary-50 rounded-lg"
-                                    >
-                                        <X size={16} />
-                                    </Button>
+                            {/* رسوم الدفع والشهادة الجمركية */}
+                            <div className="flex gap-4">
+                                <div className="grid gap-3 w-full">
+                                    <Label>رسوم الدفع *</Label>
+                                    <input type="number" step="0.01" {...register("payment_fees")} placeholder="ادخل رسوم الدفع بالجنيه المصري" min="0" />
+                                    {errors.payment_fees && <span className="text-sm text-rose-400">{errors.payment_fees.message}</span>}
                                 </div>
-                            )}
-                            
-                            <Select value={selectedDestination} onValueChange={handleDestinationChange} onOpenChange={(open) => {
-                                if (!open) {
-                                    setDestinationSearchTerm("")
-                                }
-                            }}>
-                                <SelectTrigger className="w-full text-right border-neutral-200 rounded-xl focus:border-primary-500 focus:ring-2 focus:ring-primary-100 bg-neutral-50 focus:bg-white px-4 py-3" dir="rtl">
-                                    <SelectValue placeholder="ابحث واختر الوجهة">
-                                        {selectedDestination || "ابحث واختر الوجهة"}
-                                    </SelectValue>
-                                </SelectTrigger>
-                                <SelectContent 
-                                    className="max-h-[300px] text-right" 
-                                    dir="rtl"
-                                >
-                                    <div className="p-2 border-b">
-                                        <input 
-                                            type="text" 
-                                            placeholder="ابحث في الوجهات..."
-                                            value={destinationSearchTerm}
-                                            onChange={(e) => setDestinationSearchTerm(e.target.value)}
-                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                                            onPointerDown={(e) => e.stopPropagation()}
-                                            onMouseDown={(e) => e.stopPropagation()}
-                                            onKeyDown={(e) => e.stopPropagation()}
-                                            onFocus={(e) => e.stopPropagation()}
-                                            onClick={(e) => e.stopPropagation()}
-                                            autoFocus
-                                        />
+                                <div className="grid gap-3 w-full">
+                                    <Label>الشهادة الجمركية *</Label>
+                                    <input {...register("customs_certificate")} placeholder="ادخل رقم الشهادة الجمركية" />
+                                    {errors.customs_certificate && <span className="text-sm text-rose-400">{errors.customs_certificate.message}</span>}
+                                </div>
+                            </div>
+
+                            {/* عقد / تصديق / حالة */}
+                            <div className="grid gap-4 w-full">
+                                <Label>عقد / تصديق / حالة *</Label>
+                                <div className="flex gap-4 items-center">
+                                    <div className="grid gap-3 w-full">
+                                        <input {...register('contract_status.contract')} min={0} type="number" placeholder="ادخل رقم العقد" className="w-full" />
+                                        {errors.contract_status?.contract && <span className="text-sm text-rose-400">{errors.contract_status.contract.message}</span>}
                                     </div>
-                                    <div className="max-h-[200px] overflow-y-auto">
-                                        {filteredDestinations.length > 0 ? (
-                                            <>
-                                                {filteredDestinations.map((destination) => (
-                                                    <SelectItem key={destination.id} value={destination.name} className="text-right" dir="rtl">
-                                                        <div className="flex items-center justify-between w-full gap-2">
-                                                            <button
-                                                                type="button"
-                                                                className="text-red-500 hover:text-red-700 p-1 rounded flex-shrink-0"
-                                                                title="حذف الوجهة"
-                                                                onPointerDown={(e) => {
-                                                                    e.preventDefault()
-                                                                    e.stopPropagation()
-                                                                    setDeleteDestinationDialog({ open: true, destination })
-                                                                }}
-                                                            >
-                                                                <X size={16} />
-                                                            </button>
-                                                            <span className="flex-1">{destination.name}</span>
-                                                        </div>
-                                                    </SelectItem>
+                                    <span>\</span>
+                                    <div className="grid gap-3 w-full">
+                                        <Select dir="rtl" value={watch("contract_status.ratification")} onValueChange={(val) => setValue("contract_status.ratification", val, { shouldValidate: true })}>
+                                            <SelectTrigger className="w-full !ring-0 col-span-2">
+                                                <SelectValue placeholder="اختر  نوع التصديق" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {contractOptions.map((opt, i) => (
+                                                    <SelectItem key={i} value={opt.value}>{opt.label}</SelectItem>
                                                 ))}
-                                                <SelectItem value="add_new" className="text-primary-600 font-medium hover:bg-primary-50 border-t">
-                                                    <div className="flex items-center gap-2">
-                                                        <Plus size={16} />
-                                                        إضافة وجهة جديدة
-                                                    </div>
-                                                </SelectItem>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <div className="p-3 text-sm text-neutral-500 text-center">
-                                                    لا توجد نتائج للبحث
-                                                </div>
-                                                <SelectItem value="add_new" className="text-primary-600 font-medium hover:bg-primary-50 border-t">
-                                                    <div className="flex items-center gap-2">
-                                                        <Plus size={16} />
-                                                        إضافة وجهة جديدة
-                                                    </div>
-                                                </SelectItem>
-                                            </>
-                                        )}
+                                            </SelectContent>
+                                        </Select>
+                                        {errors.contract_status?.ratification && <span className="text-sm text-rose-400">{errors.contract_status.ratification.message}</span>}
                                     </div>
-                                </SelectContent>
-                            </Select>
-                            {errors.destination && <span className="text-sm text-rose-400 flex items-center gap-1">
-                                <AlertCircle size={14} />
-                                {errors.destination.message}
-                            </span>}
-                        </div>
-
-                        {/* رسوم الدفع والشهادة الجمركية */}
-                        <div className="flex gap-4">
-                            <div className="grid gap-3 w-full">
-                                <Label>رسوم الدفع *</Label>
-                                <input type="number" step="0.01" {...register("payment_fees")} placeholder="ادخل رسوم الدفع بالجنيه المصري" min="0" />
-                                {errors.payment_fees && <span className="text-sm text-rose-400">{errors.payment_fees.message}</span>}
-                            </div>
-                            <div className="grid gap-3 w-full">
-                                <Label>الشهادة الجمركية *</Label>
-                                <input {...register("customs_certificate")} placeholder="ادخل رقم الشهادة الجمركية" />
-                                {errors.customs_certificate && <span className="text-sm text-rose-400">{errors.customs_certificate.message}</span>}
-                            </div>
-                        </div>
-
-                        {/* عقد / تصديق / حالة */}
-                        <div className="grid gap-4 w-full">
-                            <Label>عقد / تصديق / حالة *</Label>
-                            <div className="flex gap-4 items-center">
-                                <div className="grid gap-3 w-full">
-                                    <input {...register('contract_status.contract')} min={0} type="number" placeholder="ادخل رقم العقد" className="w-full" />
-                                    {errors.contract_status?.contract && <span className="text-sm text-rose-400">{errors.contract_status.contract.message}</span>}
-                                </div>
-                                <span>\</span>
-                                <div className="grid gap-3 w-full">
-                                    <Select dir="rtl" value={watch("contract_status.ratification")} onValueChange={(val) => setValue("contract_status.ratification", val, { shouldValidate: true })}>
-                                        <SelectTrigger className="w-full !ring-0 col-span-2">
-                                            <SelectValue placeholder="اختر  نوع التصديق" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {contractOptions.map((opt, i) => (
-                                                <SelectItem key={i} value={opt.value}>{opt.label}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    {errors.contract_status?.ratification && <span className="text-sm text-rose-400">{errors.contract_status.ratification.message}</span>}
-                                </div>
-                                <span>\</span>
-                                <div className="grid gap-3 w-full">
-                                    <Select dir="rtl" value={watch("contract_status.status")} onValueChange={(val) => setValue("contract_status.status", val, { shouldValidate: true })}>
-                                        <SelectTrigger className="w-full !ring-0 col-span-2">
-                                            <SelectValue placeholder="اختر سنه الحالة" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {yearsOptions.map((opt, i) => (
-                                                <SelectItem key={i} value={opt.value}>{opt.label}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    {errors.contract_status?.status && <span className="text-sm text-rose-400">{errors.contract_status.status.message}</span>}
+                                    <span>\</span>
+                                    <div className="grid gap-3 w-full">
+                                        <Select dir="rtl" value={watch("contract_status.status")} onValueChange={(val) => setValue("contract_status.status", val, { shouldValidate: true })}>
+                                            <SelectTrigger className="w-full !ring-0 col-span-2">
+                                                <SelectValue placeholder="اختر سنه الحالة" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {yearsOptions.map((opt, i) => (
+                                                    <SelectItem key={i} value={opt.value}>{opt.label}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        {errors.contract_status?.status && <span className="text-sm text-rose-400">{errors.contract_status.status.message}</span>}
+                                    </div>
                                 </div>
                             </div>
+
+                            {/* تاريخ الصرف (اختياري) */}
+                            <div className="grid gap-3 w-full">
+                                <Label>تاريخ الصرف (اختياري)</Label>
+                                <input type="date" {...register("disbursement_date")} />
+                                {errors.disbursement_date && <span className="text-sm text-rose-400">{errors.disbursement_date.message}</span>}
+                            </div>
+
+                            {/* المستلم ورسوم الأرضية */}
+                            <div className="flex gap-4">
+                                <div className="grid gap-3 w-full">
+                                    <Label>المستلم *</Label>
+                                    <input {...register("receiver_name")} placeholder="ادخل اسم المستلم النهائي" />
+                                    {errors.receiver_name && <span className="text-sm text-rose-400">{errors.receiver_name.message}</span>}
+                                </div>
+                                <div className="grid gap-3 w-full">
+                                    <Label>رسوم الأرضية *</Label>
+                                    <input type="number" step="0.01" {...register("ground_fees")} placeholder="ادخل رسوم الأرضية بالجنيه المصري" min="0" />
+                                    {errors.ground_fees && <span className="text-sm text-rose-400">{errors.ground_fees.message}</span>}
+                                </div>
+                            </div>
+
                         </div>
 
-                        {/* تاريخ الصرف (اختياري) */}
-                        <div className="grid gap-3 w-full">
-                            <Label>تاريخ الصرف (اختياري)</Label>
-                            <input type="date" {...register("disbursement_date")} />
-                            {errors.disbursement_date && <span className="text-sm text-rose-400">{errors.disbursement_date.message}</span>}
-                        </div>
-
-                        {/* المستلم ورسوم الأرضية */}
-                        <div className="flex gap-4">
-                            <div className="grid gap-3 w-full">
-                                <Label>المستلم *</Label>
-                                <input {...register("receiver_name")} placeholder="ادخل اسم المستلم النهائي" />
-                                {errors.receiver_name && <span className="text-sm text-rose-400">{errors.receiver_name.message}</span>}
-                            </div>
-                            <div className="grid gap-3 w-full">
-                                <Label>رسوم الأرضية *</Label>
-                                <input type="number" step="0.01" {...register("ground_fees")} placeholder="ادخل رسوم الأرضية بالجنيه المصري" min="0" />
-                                {errors.ground_fees && <span className="text-sm text-rose-400">{errors.ground_fees.message}</span>}
-                            </div>
-                        </div>
-
-                        {/* حالة التصدير */}
-                        <div className="flex gap-4">
-                            <div className="grid gap-3 w-full">
-                                <Label>تم التصدير؟</Label>
-                                <label className="flex items-center gap-2">
-                                    <input type="checkbox" {...register("export")} />
-                                    <span>قم بتفعيل هذا الخيار عند تصدير الشحنة</span>
-                                </label>
-                            </div>
-                            <div className="grid gap-3 w-full">
-                                <Label>تاريخ التصدير</Label>
-                                <input type="date" {...register("export_date")} disabled={!watch("export")} />
-                                {errors.export_date && <span className="text-sm text-rose-400">{errors.export_date.message}</span>}
-                            </div>
-                        </div>
-                    </div>
-
-                    <DialogFooter>
-                        <DialogClose asChild>
-                            <Button disabled={loading} variant="outline" className="cursor-pointer">إلغاء</Button>
-                        </DialogClose>
-                        <Button disabled={loading} type="submit" className="cursor-pointer" onClick={onSubmit}>
-                            {loading ? (
-                                <>
-                                    <LoaderCircle className="animate-spin" />
-                                    <span>تعديل ...</span>
-                                </>
-                            ) : (
-                                <span>تعديل</span>
-                            )}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </form>
-        </Dialog>
-        {deleteDestinationDialog.destination && (
-            <DeletePopup
-                item={deleteDestinationDialog.destination}
-                delFn={deleteDestination}
-                loading={destinationsLoading}
-                open={deleteDestinationDialog.open}
-                onOpenChange={(open) => {
-                    if (!open) {
+                        <DialogFooter>
+                            <DialogClose asChild>
+                                <Button disabled={loading} variant="outline" className="cursor-pointer">إلغاء</Button>
+                            </DialogClose>
+                            <Button disabled={loading} type="submit" className="cursor-pointer" onClick={onSubmit}>
+                                {loading ? (
+                                    <>
+                                        <LoaderCircle className="animate-spin" />
+                                        <span>حفظ التعديلات ...</span>
+                                    </>
+                                ) : (
+                                    <span>تعديل</span>
+                                )}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </form>
+            </Dialog>
+            {deleteDestinationDialog.destination && (
+                <DeletePopup
+                    item={deleteDestinationDialog.destination}
+                    delFn={deleteDestination}
+                    loading={destinationsLoading}
+                    open={deleteDestinationDialog.open}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setDeleteDestinationDialog({ open: false, destination: null })
+                        }
+                    }}
+                    onSuccess={() => {
+                        if (selectedDestination === deleteDestinationDialog.destination?.name) {
+                            setSelectedDestination("")
+                            setValue('destination', "", { shouldValidate: true })
+                        }
                         setDeleteDestinationDialog({ open: false, destination: null })
-                    }
-                }}
-                onSuccess={() => {
-                    if (selectedDestination === deleteDestinationDialog.destination?.name) {
-                        setSelectedDestination("")
-                        setValue('destination', "", { shouldValidate: true })
-                    }
-                    setDeleteDestinationDialog({ open: false, destination: null })
-                }}
-            />
-        )}
-        {deleteCompanyDialog.company && (
-            <DeletePopup
-                item={deleteCompanyDialog.company}
-                delFn={deleteCompany}
-                loading={companiesLoading}
-                open={deleteCompanyDialog.open}
-                onOpenChange={(open) => {
-                    if (!open) {
+                    }}
+                />
+            )}
+            {deleteCompanyDialog.company && (
+                <DeletePopup
+                    item={deleteCompanyDialog.company}
+                    delFn={deleteCompany}
+                    loading={companiesLoading}
+                    open={deleteCompanyDialog.open}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setDeleteCompanyDialog({ open: false, company: null })
+                        }
+                    }}
+                    onSuccess={() => {
+                        if (selectedCompany === deleteCompanyDialog.company?.name) {
+                            setSelectedCompany("")
+                            setValue('company_name', "", { shouldValidate: true })
+                        }
                         setDeleteCompanyDialog({ open: false, company: null })
-                    }
-                }}
-                onSuccess={() => {
-                    if (selectedCompany === deleteCompanyDialog.company?.name) {
-                        setSelectedCompany("")
-                        setValue('company_name', "", { shouldValidate: true })
-                    }
-                    setDeleteCompanyDialog({ open: false, company: null })
-                }}
-            />
-        )}
+                    }}
+                />
+            )}
         </>
     )
 }

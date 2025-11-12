@@ -5,51 +5,6 @@ import { createShipment, updateShipment, deleteShipment } from './inShipmentsSli
 
 const matchesOutShipment = (shipment) => !shipment?.export
 
-const calculateStats = (shipments = []) => {
-    if (!shipments.length) {
-        return {
-            total_shipments: 0,
-            total_weight: 0,
-            total_payment_fees: 0,
-            total_ground_fees: 0,
-            last_updated: new Date().toISOString(),
-        }
-    }
-
-    const totals = shipments.reduce(
-        (acc, shipment) => {
-            acc.total_weight += Number(shipment.weight || 0)
-            acc.total_payment_fees += Number(shipment.payment_fees || 0)
-            acc.total_ground_fees += Number(shipment.ground_fees || 0)
-
-            const updatedAt = shipment.updated_at ? new Date(shipment.updated_at) : null
-            if (updatedAt && !isNaN(updatedAt.getTime()) && updatedAt > acc.maxDate) {
-                acc.maxDate = updatedAt
-            }
-
-            return acc
-        },
-        {
-            total_weight: 0,
-            total_payment_fees: 0,
-            total_ground_fees: 0,
-            maxDate: new Date(0),
-        }
-    )
-
-    return {
-        total_shipments: shipments.length,
-        total_weight: totals.total_weight,
-        total_payment_fees: totals.total_payment_fees,
-        total_ground_fees: totals.total_ground_fees,
-        last_updated: (
-            isNaN(totals.maxDate.getTime())
-                ? new Date()
-                : totals.maxDate
-        ).toISOString(),
-    }
-}
-
 export const getOutShipments = createAsyncThunk('outShipmentsSlice/getOutShipments', async (_, thunkAPI) => {
     try {
         const response = await axiosRequest.get('api/in-shipments/', {
@@ -70,10 +25,37 @@ export const getAllOutShipments = createAsyncThunk('outShipmentsSlice/getAllOutS
     }
 })
 
+export const getOutShipmentsStats = createAsyncThunk('outShipmentsSlice/getOutShipmentsStats', async (_, thunkAPI) => {
+    try {
+        const response = await axiosRequest.get('api/out-shipments/stats/')
+        return response.data
+    } catch (error) {
+        return thunkAPI.rejectWithValue(error.response?.data || error.message)
+    }
+})
+
 export const createOutShipment = createAsyncThunk('outShipmentsSlice/createOutShipment', async (data, thunkAPI) => {
     try {
         const response = await axiosRequest.post('api/out-shipments/', data)
         return response.data
+    } catch (error) {
+        return thunkAPI.rejectWithValue(error.response?.data || error.message)
+    }
+})
+
+export const updateOutShipment = createAsyncThunk('outShipmentsSlice/updateOutShipment', async ({ id, data }, thunkAPI) => {
+    try {
+        const response = await axiosRequest.patch(`api/out-shipments/${id}/`, data)
+        return response.data
+    } catch (error) {
+        return thunkAPI.rejectWithValue(error.response?.data || error.message)
+    }
+})
+
+export const deleteOutShipment = createAsyncThunk('outShipmentsSlice/deleteOutShipment', async (id, thunkAPI) => {
+    try {
+        await axiosRequest.delete(`api/out-shipments/${id}/`)
+        return id
     } catch (error) {
         return thunkAPI.rejectWithValue(error.response?.data || error.message)
     }
@@ -84,7 +66,7 @@ const outShipmentsSlice = createSlice({
     initialState: {
         loading: false,
         shipments: [],
-        allShipments: [], // All out-shipments for reports
+        allShipments: [],
         shipmentsStats: null,
     },
     reducers: {},
@@ -97,12 +79,10 @@ const outShipmentsSlice = createSlice({
                 state.loading = false
                 const shipments = (action.payload || []).filter(matchesOutShipment)
                 state.shipments = shipments
-                state.shipmentsStats = calculateStats(shipments)
             })
             .addCase(getOutShipments.rejected, (state, action) => {
                 state.loading = false
                 state.shipments = []
-                state.shipmentsStats = calculateStats([])
                 if (action.payload) {
                     toast.error("حدث خطأ أثناء جلب الشحنات الصادرة")
                 }
@@ -121,13 +101,25 @@ const outShipmentsSlice = createSlice({
                     toast.error("حدث خطأ أثناء جلب جميع الشحنات الصادرة")
                 }
             })
+            .addCase(getOutShipmentsStats.pending, (state) => {
+                state.loading = true
+            })
+            .addCase(getOutShipmentsStats.fulfilled, (state, action) => {
+                state.loading = false
+                state.shipmentsStats = action.payload || null
+            })
+            .addCase(getOutShipmentsStats.rejected, (state, action) => {
+                state.loading = false
+                state.shipmentsStats = null
+                if (action.payload) {
+                    toast.error("حدث خطأ أثناء جلب إحصائيات الشحنات الصادرة")
+                }
+            })
             .addCase(createOutShipment.pending, (state) => {
                 state.loading = true
             })
-            .addCase(createOutShipment.fulfilled, (state, action) => {
+            .addCase(createOutShipment.fulfilled, (state) => {
                 state.loading = false
-                // OutShipments endpoint returns the created out record; remove the corresponding inbound from this list
-                // However, our listing here contains inbound (export=false) shipments, so we refetch instead.
                 toast.success("تم إنشاء شحنة التصدير بنجاح")
             })
             .addCase(createOutShipment.rejected, (state, action) => {
@@ -136,11 +128,47 @@ const outShipmentsSlice = createSlice({
                 const msg = typeof errorData === 'string' ? errorData : "حدث خطأ أثناء إنشاء شحنة التصدير"
                 toast.error(msg)
             })
+            .addCase(updateOutShipment.pending, (state) => {
+                state.loading = true
+            })
+            .addCase(updateOutShipment.fulfilled, (state, action) => {
+                state.loading = false
+                const updated = action.payload
+                if (updated) {
+                    const index = state.allShipments.findIndex(item => item.id === updated.id)
+                    if (index !== -1) {
+                        state.allShipments[index] = updated
+                    } else {
+                        state.allShipments.unshift(updated)
+                    }
+                }
+                toast.success("تم تحديث الشحنة الصادرة بنجاح")
+            })
+            .addCase(updateOutShipment.rejected, (state, action) => {
+                state.loading = false
+                const errorData = action.payload
+                const msg = typeof errorData === 'string' ? errorData : "حدث خطأ أثناء تحديث الشحنة الصادرة"
+                toast.error(msg)
+            })
+            .addCase(deleteOutShipment.pending, (state) => {
+                state.loading = true
+            })
+            .addCase(deleteOutShipment.fulfilled, (state, action) => {
+                state.loading = false
+                const deletedId = action.payload ?? action.meta.arg
+                state.allShipments = state.allShipments.filter(shipment => shipment.id !== deletedId)
+                toast.success("تم حذف الشحنة الصادرة بنجاح")
+            })
+            .addCase(deleteOutShipment.rejected, (state, action) => {
+                state.loading = false
+                const errorData = action.payload
+                const msg = typeof errorData === 'string' ? errorData : "حدث خطأ أثناء حذف الشحنة الصادرة"
+                toast.error(msg)
+            })
             .addCase(createShipment.fulfilled, (state, action) => {
                 const shipment = action.payload
                 if (matchesOutShipment(shipment)) {
                     state.shipments.unshift(shipment)
-                    state.shipmentsStats = calculateStats(state.shipments)
                 }
             })
             .addCase(updateShipment.fulfilled, (state, action) => {
@@ -156,12 +184,9 @@ const outShipmentsSlice = createSlice({
                 } else if (index !== -1) {
                     state.shipments.splice(index, 1)
                 }
-
-                state.shipmentsStats = calculateStats(state.shipments)
             })
             .addCase(deleteShipment.fulfilled, (state, action) => {
                 state.shipments = state.shipments.filter(shipment => shipment.id !== action.meta.arg)
-                state.shipmentsStats = calculateStats(state.shipments)
             })
             .addCase(deleteShipment.rejected, (state, action) => {
                 if (action.payload) {

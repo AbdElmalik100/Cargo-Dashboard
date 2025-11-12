@@ -38,27 +38,27 @@ const OutShipmentsTable = ({ shipments }) => {
             },
         },
         {
-            accessorKey: "in_shipment.bill_number",
-            header: () => <div className="text-start">رقم البوليصة (الشحنة الواردة)</div>,
+            id: "in_shipments",
+            header: () => <div className="text-start">الشحنات الواردة</div>,
             cell: ({ row }) => {
-                const inShipment = row.original?.in_shipment
+                const shipments = row.original?.in_shipments || []
+                if (!shipments.length) {
+                    return <div className="text-start text-neutral-500">-</div>
+                }
                 return (
-                    <div className="text-start">
-                        {inShipment?.bill_number || '-'}
+                    <div className="flex flex-wrap gap-1 justify-start">
+                        {shipments.map(shipment => (
+                            <span
+                                key={shipment.id}
+                                className="inline-flex items-center gap-1 rounded-full bg-neutral-100 text-neutral-700 border border-neutral-200 px-3 py-1 text-xs"
+                            >
+                                <span>{shipment.bill_number || '-'}</span>
+                                <span className="text-neutral-400">/</span>
+                                <span>{shipment.sub_bill_number || '-'}</span>
+                            </span>
+                        ))}
                     </div>
-                );
-            },
-        },
-        {
-            accessorKey: "in_shipment.sub_bill_number",
-            header: () => <div className="text-start">رقم البوليصة الفرعية (الشحنة الواردة)</div>,
-            cell: ({ row }) => {
-                const inShipment = row.original?.in_shipment
-                return (
-                    <div className="text-start">
-                        {inShipment?.sub_bill_number || '-'}
-                    </div>
-                );
+                )
             },
         },
         {
@@ -198,7 +198,7 @@ const OutShipmentsTable = ({ shipments }) => {
         <div className='border p-4 border-neutral-300 mt-8 rounded-2xl bg-white'>
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-neutral-800">الشحنات الصادرة</h2>
-                <CargoReportExport data={filteredData} title="الشحنات الواردة الغير صادرة" />
+                <CargoReportExport data={filteredData} title="الشحنات الصادرة" />
             </div>
             <DataTable table={table} columns={columns} />
         </div>

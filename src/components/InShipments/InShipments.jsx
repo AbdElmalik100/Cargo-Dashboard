@@ -114,8 +114,8 @@ const InShipments = () => {
                         variant="ghost"
                         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
                     >
-                        عدد الطرود
                         <ArrowUpDown />
+                        عدد الطرود
                     </Button>
                 </div>
             ),
@@ -309,6 +309,9 @@ const InShipments = () => {
 
     return (
         <div className='border p-4 border-neutral-300 mt-8 rounded-2xl bg-white'>
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">الشحنات الواردة</h2>
+            </div>
             <CargoTableToolbar table={table} data={shipments || []} shipmentType="in" />
             <DataTable table={table} columns={columns} />
         </div>

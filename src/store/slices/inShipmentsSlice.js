@@ -12,7 +12,7 @@ export const getShipments = createAsyncThunk('inShipmentsSlice/getShipments', as
     }
 });
 
-export const getShipmentsStats = createAsyncThunk('inShipmentsSlice/getShipmentsStats', async (_, thunkAPI) => {
+export const getInShipmentsStats = createAsyncThunk('inShipmentsSlice/getInShipmentsStats', async (_, thunkAPI) => {
     try {
         const response = await axiosRequest.get('api/in-shipments/stats/');
         return response.data;
@@ -53,7 +53,7 @@ const inShipmentsSlice = createSlice({
     initialState: {
         loading: false,
         shipments: [],
-        shipmentsStats: null,
+        inShipmentsStats: null,
     },
     reducers: {},
     extraReducers: builder => {
@@ -71,16 +71,16 @@ const inShipmentsSlice = createSlice({
             });
 
         builder
-            .addCase(getShipmentsStats.pending, (state) => {
+            .addCase(getInShipmentsStats.pending, (state) => {
                 state.loading = true;
             })
-            .addCase(getShipmentsStats.fulfilled, (state, action) => {
+            .addCase(getInShipmentsStats.fulfilled, (state, action) => {
                 state.loading = false;
-                state.shipmentsStats = action.payload;
+                state.inShipmentsStats = action.payload;
             })
-            .addCase(getShipmentsStats.rejected, (state, action) => {
+            .addCase(getInShipmentsStats.rejected, (state, action) => {
                 state.loading = false;
-                state.shipmentsStats = null;
+                state.inShipmentsStats = null;
             });
 
         builder
