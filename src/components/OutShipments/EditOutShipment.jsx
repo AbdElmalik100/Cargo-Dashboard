@@ -3,7 +3,6 @@ import { useDispatch, useSelector } from "react-redux"
 import { useForm } from "react-hook-form"
 import * as yup from "yup"
 import { yupResolver } from "@hookform/resolvers/yup"
-import { toast } from "sonner"
 import {
     Dialog,
     DialogClose,
@@ -226,7 +225,6 @@ const EditOutShipment = ({ item, children }) => {
     const handleAddNewDestination = async () => {
         const name = newDestination.trim()
         if (!name) {
-            toast.error("يرجى إدخال اسم الوجهة")
             return
         }
         try {
@@ -253,7 +251,6 @@ const EditOutShipment = ({ item, children }) => {
     const handleAddNewCompany = async () => {
         const name = newCompany.trim()
         if (!name) {
-            toast.error("يرجى إدخال اسم الشركة")
             return
         }
         try {
@@ -278,15 +275,12 @@ const EditOutShipment = ({ item, children }) => {
 
     const onSubmit = handleSubmit(async (formData) => {
         if (selectedInShipments.length === 0) {
-            toast.error("يرجى اختيار شحنة واحدة على الأقل")
             return
         }
         if (!selectedDestination) {
-            toast.error("يرجى اختيار الوجهة")
             return
         }
         if (!selectedCompany) {
-            toast.error("يرجى اختيار الشركة")
             return
         }
 

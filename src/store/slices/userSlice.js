@@ -1,6 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import axiosRequest from '../../plugins/axios';
-import { toast } from 'sonner';
 import Cookies from 'js-cookie';
 
 
@@ -60,7 +59,6 @@ const userSlice = createSlice({
             })
             .addCase(login.rejected, (state, action) => {
                 state.loading = false;
-                toast.error("حدث خطأ اثناء تسجيل الدخول , تحقق من البيانات وحاول مرة اخرى");
             });
 
         builder
@@ -74,7 +72,6 @@ const userSlice = createSlice({
             })
             .addCase(logout.rejected, (state, action) => {
                 state.loading = false;
-                toast.error("حدث خطأ اثناء تسجيل الخروج ,حاول مرة اخرى");
             });
     },
 });

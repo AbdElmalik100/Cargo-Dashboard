@@ -1,6 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import axiosRequest from '../../plugins/axios';
-import { toast } from 'sonner';
 
 export const getCompanies = createAsyncThunk('companiesSlice/getCompanies', async (_, thunkAPI) => {
     try {
@@ -53,9 +52,6 @@ const companiesSlice = createSlice({
                 state.loading = false;
                 // Only show error if it's not a 404 (endpoint doesn't exist yet)
                 const errorMessage = action.payload?.toString() || '';
-                if (errorMessage && !errorMessage.includes('404')) {
-                    toast.error("حدث خطأ اثناء جلب الشركات");
-                }
                 state.companies = [];
             })
             .addCase(createCompany.pending, (state) => {
@@ -68,12 +64,10 @@ const companiesSlice = createSlice({
                 if (!exists) {
                     state.companies.push(action.payload);
                 }
-                toast.success("تم إضافة الشركة بنجاح");
             })
             .addCase(createCompany.rejected, (state, action) => {
                 state.loading = false;
-                const errorMessage = action.payload?.name?.[0] || action.payload?.detail || "حدث خطأ اثناء إضافة الشركة";
-                toast.error(errorMessage);
+                const errorMessage = action.payload?.name?.[0] || action.payload?.detail || "";
             })
             .addCase(deleteCompany.pending, (state) => {
                 state.loading = true;
@@ -81,14 +75,11 @@ const companiesSlice = createSlice({
             .addCase(deleteCompany.fulfilled, (state, action) => {
                 state.loading = false;
                 state.companies = state.companies.filter(c => c.id !== action.payload);
-                toast.success("تم حذف الشركة بنجاح");
             })
             .addCase(deleteCompany.rejected, (state, action) => {
                 state.loading = false;
-                toast.error("حدث خطأ اثناء حذف الشركة");
             });
     },
 });
 
 export default companiesSlice.reducer;
-

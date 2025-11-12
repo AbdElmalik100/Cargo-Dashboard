@@ -1,6 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import axiosRequest from '../../plugins/axios';
-import { toast } from 'sonner';
 
 export const getDestinations = createAsyncThunk('destinationsSlice/getDestinations', async (_, thunkAPI) => {
     try {
@@ -47,7 +46,6 @@ const destinationsSlice = createSlice({
             })
             .addCase(getDestinations.rejected, (state, action) => {
                 state.loading = false;
-                toast.error("حدث خطأ اثناء جلب الوجهات");
             })
             .addCase(createDestination.pending, (state) => {
                 state.loading = true;
@@ -59,12 +57,10 @@ const destinationsSlice = createSlice({
                 if (!exists) {
                     state.destinations.push(action.payload);
                 }
-                toast.success("تم إضافة الوجهة بنجاح");
             })
             .addCase(createDestination.rejected, (state, action) => {
                 state.loading = false;
-                const errorMessage = action.payload?.name?.[0] || action.payload?.detail || "حدث خطأ اثناء إضافة الوجهة";
-                toast.error(errorMessage);
+                const errorMessage = action.payload?.name?.[0] || action.payload?.detail || "";
             })
             .addCase(deleteDestination.pending, (state) => {
                 state.loading = true;
@@ -72,11 +68,9 @@ const destinationsSlice = createSlice({
             .addCase(deleteDestination.fulfilled, (state, action) => {
                 state.loading = false;
                 state.destinations = state.destinations.filter(d => d.id !== action.payload);
-                toast.success("تم حذف الوجهة بنجاح");
             })
             .addCase(deleteDestination.rejected, (state, action) => {
                 state.loading = false;
-                toast.error("حدث خطأ اثناء حذف الوجهة");
             });
     },
 });

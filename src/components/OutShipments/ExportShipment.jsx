@@ -14,7 +14,6 @@ import { LoaderCircle, Plus, X, Check, AlertCircle, Send } from "lucide-react"
 import { useForm } from "react-hook-form"
 import * as yup from 'yup'
 import { yupResolver } from "@hookform/resolvers/yup"
-import { toast } from "sonner"
 import { useEffect, useState } from "react"
 import {
     Select,
@@ -158,7 +157,6 @@ const ExportShipment = ({ children }) => {
     const handleAddNewDestination = async () => {
         const name = newDestination.trim()
         if (!name) {
-            toast.error("يرجى إدخال اسم الوجهة")
             return
         }
         try {
@@ -185,7 +183,6 @@ const ExportShipment = ({ children }) => {
     const handleAddNewCompany = async () => {
         const name = newCompany.trim()
         if (!name) {
-            toast.error("يرجى إدخال اسم الشركة")
             return
         }
         try {
@@ -231,18 +228,15 @@ const ExportShipment = ({ children }) => {
 
     const onSubmit = handleSubmit(async (formData) => {
         if (selectedInShipments.length === 0) {
-            toast.error("يرجى اختيار شحنة واحدة على الأقل")
             return
         }
 
         // Validate destination is selected
         if (!selectedDestination) {
-            toast.error("يرجى اختيار الوجهة")
             return
         }
         // Validate company is selected
         if (!selectedCompany) {
-            toast.error("يرجى اختيار الشركة")
             return
         }
 
@@ -260,7 +254,6 @@ const ExportShipment = ({ children }) => {
             const createResponse = await dispatch(createOutShipment(finalData))
 
             if (createOutShipment.fulfilled.match(createResponse)) {
-                toast.success("تم تصدير الشحنة بنجاح")
                 dispatch(getAllOutShipments())
                 dispatch(getOutShipmentsStats())
                 dispatch(getShipments()) // Refresh inshipments to update export status
@@ -274,7 +267,6 @@ const ExportShipment = ({ children }) => {
                 setSearchTerm("")
             }
         } catch (error) {
-            toast.error("حدث خطأ أثناء تصدير الشحنة")
         }
     })
 

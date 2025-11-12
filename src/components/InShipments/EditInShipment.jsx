@@ -14,7 +14,6 @@ import { LoaderCircle, Plus, X, Check, AlertCircle } from "lucide-react"
 import { useForm } from "react-hook-form"
 import * as yup from 'yup'
 import { yupResolver } from "@hookform/resolvers/yup"
-import { toast } from "sonner"
 import { useEffect, useState, useMemo } from "react"
 import {
     Select,
@@ -146,7 +145,6 @@ const EditInShipment = ({ item, children }) => {
     const handleAddNewDestination = async () => {
         const name = newDestination.trim()
         if (!name) {
-            toast.error("يرجى إدخال اسم الوجهة")
             return
         }
         try {
@@ -173,7 +171,6 @@ const EditInShipment = ({ item, children }) => {
     const handleAddNewCompany = async () => {
         const name = newCompany.trim()
         if (!name) {
-            toast.error("يرجى إدخال اسم الشركة")
             return
         }
         try {
@@ -201,12 +198,10 @@ const EditInShipment = ({ item, children }) => {
     const onSubmit = handleSubmit(async (formData) => {
         // Validate destination is selected
         if (!selectedDestination) {
-            toast.error("يرجى اختيار الوجهة")
             return
         }
         // Validate company is selected
         if (!selectedCompany) {
-            toast.error("يرجى اختيار الشركة")
             return
         }
 
@@ -220,7 +215,6 @@ const EditInShipment = ({ item, children }) => {
 
         const response = await dispatch(updateShipment({ id: item.id, updatedData: finalData }))
         if (updateShipment.fulfilled.match(response)) {
-            toast.success("تم تحديث الشحنة بنجاح")
             setOpen(false)
         }
     })

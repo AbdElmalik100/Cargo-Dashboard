@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { useDispatch } from "react-redux"
 import { getShipments, getInShipmentsStats } from "../store/slices/inShipmentsSlice"
 import { getAllOutShipments, getOutShipmentsStats } from "../store/slices/outShipmentsSlice"
@@ -6,7 +6,7 @@ import { toast } from "sonner"
 
 const resolveWsUrl = () => {
     const raw = import.meta.env.VITE_WEBSOCKET_URL || ''
-    if (!raw) return ''
+    if (!raw) return 'ws://127.0.0.1:8000/ws/shipments/stats/'
     if (raw.startsWith('ws://') || raw.startsWith('wss://')) return raw
     if (raw.startsWith('http://') || raw.startsWith('https://')) {
         const url = new URL(raw)
@@ -56,6 +56,8 @@ const showUpdateToast = ({ model, action, message }) => {
 
 const ShipmentsWebSocketProvider = ({ children }) => {
     const dispatch = useDispatch()
+    const wsRef = useRef(null)
+    const retryTimerRef = useRef(null)
 
     useEffect(() => {
         const wsUrl = resolveWsUrl()
@@ -64,41 +66,72 @@ const ShipmentsWebSocketProvider = ({ children }) => {
             return
         }
 
-        const socket = new WebSocket(wsUrl)
-
-        socket.onopen = () => console.log("Shipments WebSocket connected")
-        socket.onerror = () => console.warn("Shipments WebSocket error")
-        socket.onclose = (event) => console.log("Shipments WebSocket closed", event.code)
-
-        socket.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data)
-                const { model, action } = data || {}
-
-                if (!model || !action) return
-
-                showUpdateToast(data)
-
-                if (model === "in_shipment") {
-                    dispatch(getShipments())
-                    dispatch(getInShipmentsStats())
-                    dispatch(getAllOutShipments())
-                    dispatch(getOutShipmentsStats())
-                } else if (model === "out_shipment") {
-                    dispatch(getAllOutShipments())
-                    dispatch(getOutShipmentsStats())
-                    dispatch(getShipments())
-                    dispatch(getInShipmentsStats())
-                } else if (model === 'destination' || model === 'company') {
-                    // No list refresh wired here; pages that use them should fetch as needed
-                }
-            } catch (error) {
-                console.error("Failed to parse websocket message", error)
+        const clearRetry = () => {
+            if (retryTimerRef.current) {
+                clearTimeout(retryTimerRef.current)
+                retryTimerRef.current = null
             }
         }
 
+        const connect = () => {
+            clearRetry()
+            try {
+                wsRef.current = new WebSocket(wsUrl)
+            } catch (e) {
+                // Schedule retry if constructor fails
+                retryTimerRef.current = setTimeout(connect, 200)
+                return
+            }
+
+            const socket = wsRef.current
+
+            socket.onopen = () => {
+                console.log("Shipments WebSocket connected")
+            }
+            socket.onerror = () => {
+                console.warn("Shipments WebSocket error")
+            }
+            socket.onclose = (event) => {
+                console.log("Shipments WebSocket closed", event.code)
+                // attempt reconnect after 200ms
+                clearRetry()
+                retryTimerRef.current = setTimeout(connect, 200)
+            }
+
+            socket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data)
+                    const { model, action } = data || {}
+
+                    if (!model || !action) return
+
+                    showUpdateToast(data)
+
+                    if (model === "in_shipment") {
+                        dispatch(getShipments())
+                        dispatch(getInShipmentsStats())
+                        dispatch(getAllOutShipments())
+                        dispatch(getOutShipmentsStats())
+                    } else if (model === "out_shipment") {
+                        dispatch(getAllOutShipments())
+                        dispatch(getOutShipmentsStats())
+                        dispatch(getShipments())
+                        dispatch(getInShipmentsStats())
+                    } else if (model === 'destination' || model === 'company') {
+                        // No list refresh wired here; pages that use them should fetch as needed
+                    }
+                } catch (error) {
+                    console.error("Failed to parse websocket message", error)
+                }
+            }
+        }
+
+        connect()
+
         return () => {
-            try { socket.close() } catch { }
+            clearRetry()
+            try { wsRef.current && wsRef.current.close() } catch { }
+            wsRef.current = null
         }
     }, [dispatch])
 
