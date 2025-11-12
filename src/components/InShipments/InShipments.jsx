@@ -18,9 +18,9 @@ import { useMemo, useState } from "react"
 import { Eye, Pencil, Trash2 } from "lucide-react"
 import DataTable from "../DataTable"
 import DeletePopup from "../DeletePopup"
-import CargoTableToolbar from "../Cargos/CargoTableToolbar"
+import ShipmentTableToolbar from "../Shipments/ShipmentTableToolbar"
 import EditInShipment from "./EditInShipment"
-import ViewCargo from "../Cargos/ViewCargo"
+import ViewShipment from "../Shipments/ViewShipment"
 import { useSelector } from "react-redux"
 import { deleteShipment } from "../../store/slices/inShipmentsSlice"
 import { formatDate, formatCurrency, formatWeight } from "../../utils"
@@ -242,12 +242,12 @@ const InShipments = () => {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <ViewCargo item={row.original}>
+                            <ViewShipment item={row.original}>
                                 <DropdownMenuItem onSelect={e => e.preventDefault()}>
                                     <Eye />
                                     <span>عرض</span>
                                 </DropdownMenuItem>
-                            </ViewCargo>
+                            </ViewShipment>
                             <EditInShipment item={row.original}>
                                 <DropdownMenuItem onSelect={e => e.preventDefault()}>
                                     <Pencil />
@@ -312,7 +312,7 @@ const InShipments = () => {
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">الشحنات الواردة</h2>
             </div>
-            <CargoTableToolbar table={table} data={shipments || []} shipmentType="in" />
+            <ShipmentTableToolbar table={table} data={shipments || []} shipmentType="in" />
             <DataTable table={table} columns={columns} />
         </div>
     )

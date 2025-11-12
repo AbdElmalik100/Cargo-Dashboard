@@ -6,14 +6,17 @@ import AppRouter from './router/index.jsx'
 import { Toaster } from 'sonner'
 import { Provider } from 'react-redux'
 import { store } from './store/index.js'
+import ShipmentsWebSocketProvider from './context/ShipmentsWebSocketProvider.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <Provider store={store} >
-      <BrowserRouter>
-        <AppRouter />
-        <Toaster richColors closeButton />
-      </BrowserRouter>
+      <ShipmentsWebSocketProvider>
+        <BrowserRouter>
+          <AppRouter />
+          <Toaster richColors closeButton />
+        </BrowserRouter>
+      </ShipmentsWebSocketProvider>
     </Provider>
   </StrictMode>,
 )

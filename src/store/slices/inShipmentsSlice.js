@@ -1,6 +1,5 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import axiosRequest from '../../plugins/axios';
-import { toast } from 'sonner';
 
 
 export const getShipments = createAsyncThunk('inShipmentsSlice/getShipments', async (_, thunkAPI) => {
@@ -65,7 +64,7 @@ const inShipmentsSlice = createSlice({
                 state.loading = false;
                 state.shipments = action.payload;
             })
-            .addCase(getShipments.rejected, (state, action) => {
+            .addCase(getShipments.rejected, (state) => {
                 state.loading = false;
                 state.shipments = null;
             });
@@ -78,7 +77,7 @@ const inShipmentsSlice = createSlice({
                 state.loading = false;
                 state.inShipmentsStats = action.payload;
             })
-            .addCase(getInShipmentsStats.rejected, (state, action) => {
+            .addCase(getInShipmentsStats.rejected, (state) => {
                 state.loading = false;
                 state.inShipmentsStats = null;
             });
@@ -91,14 +90,8 @@ const inShipmentsSlice = createSlice({
                 state.loading = false;
                 state.shipments.push(action.payload);
             })
-            .addCase(createShipment.rejected, (state, action) => {
+            .addCase(createShipment.rejected, (state) => {
                 state.loading = false;
-                const errorData = action.payload;
-                if (errorData?.bill_number) {
-                    toast.error(Array.isArray(errorData.bill_number) ? errorData.bill_number[0] : errorData.bill_number);
-                } else {
-                    toast.error("حدث خطأ اثناء انشاء الشحنة , حاول مرة اخرى");
-                }
             });
 
         builder
@@ -108,16 +101,9 @@ const inShipmentsSlice = createSlice({
             .addCase(updateShipment.fulfilled, (state, action) => {
                 state.loading = false;
                 state.shipments = state.shipments.map(shipment => shipment.id !== action.payload.id ? shipment : action.payload);
-                toast.success("تم تحديث بيانات الشحنة بنجاح");
             })
-            .addCase(updateShipment.rejected, (state, action) => {
+            .addCase(updateShipment.rejected, (state) => {
                 state.loading = false;
-                const errorData = action.payload;
-                if (errorData?.bill_number) {
-                    toast.error(Array.isArray(errorData.bill_number) ? errorData.bill_number[0] : errorData.bill_number);
-                } else {
-                    toast.error("حدث خطأ اثناء تعديل البيانات , حاول مرة اخرى");
-                }
             });
             builder
             .addCase(deleteShipment.pending, (state) => {
@@ -126,11 +112,9 @@ const inShipmentsSlice = createSlice({
             .addCase(deleteShipment.fulfilled, (state, action) => {
                 state.loading = false;
                 state.shipments = state.shipments.filter(shipment => shipment.id !== action.meta.arg);
-                toast.success("تم حذف الشحنة بنجاح");
             })
-            .addCase(deleteShipment.rejected, (state, action) => {
+            .addCase(deleteShipment.rejected, (state) => {
                 state.loading = false;
-                toast.error("حدث خطأ اثناء حذف البيانات , حاول مرة اخرى");
             });
     },
 });

@@ -17,7 +17,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import ViewOutShipment from "../OutShipments/ViewOutShipment"
-import CargoReportExport from "../Cargos/CargoReportExport"
+import ShipmentReportExport from "../Shipments/ShipmentReportExport"
 
 const OutShipmentsTable = ({ shipments }) => {
     const columns = useMemo(() => [
@@ -198,7 +198,7 @@ const OutShipmentsTable = ({ shipments }) => {
         <div className='border p-4 border-neutral-300 mt-8 rounded-2xl bg-white'>
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-neutral-800">الشحنات الصادرة</h2>
-                <CargoReportExport data={filteredData} title="الشحنات الصادرة" />
+                <ShipmentReportExport data={filteredData} title="الشحنات الصادرة" shipmentType="out" />
             </div>
             <DataTable table={table} columns={columns} />
         </div>

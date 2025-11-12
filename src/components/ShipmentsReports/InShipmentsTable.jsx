@@ -16,8 +16,8 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import ViewCargo from "../Cargos/ViewCargo"
-import CargoReportExport from "../Cargos/CargoReportExport"
+import ViewShipment from "../Shipments/ViewShipment"
+import ShipmentReportExport from "../Shipments/ShipmentReportExport"
 
 const InShipmentsTable = ({ shipments }) => {
     const columns = useMemo(() => [
@@ -130,12 +130,12 @@ const InShipmentsTable = ({ shipments }) => {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <ViewCargo item={item}>
+                            <ViewShipment item={item}>
                                 <DropdownMenuItem onSelect={e => e.preventDefault()}>
                                     <Eye />
                                     <span>عرض</span>
                                 </DropdownMenuItem>
-                            </ViewCargo>
+                            </ViewShipment>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 )
@@ -179,7 +179,7 @@ const InShipmentsTable = ({ shipments }) => {
         <div className='border p-4 border-neutral-300 mt-8 rounded-2xl bg-white'>
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-neutral-800">الشحنات الواردة غير المصدرة</h2>
-                <CargoReportExport data={filteredData} title="تقرير الشحنات الواردة غير المصدرة" />
+                <ShipmentReportExport data={filteredData} title="تقرير الشحنات الواردة غير المصدرة" shipmentType="in" />
             </div>
             <DataTable table={table} columns={columns} />
         </div>

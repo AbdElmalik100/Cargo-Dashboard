@@ -1,5 +1,6 @@
 import { exportToExcel, exportToPDF } from '../../utils'
-import CargoReportPDF from '../PDF Templates/CargoReportPDF'
+import InShipmentsPDF from '../PDF Templates/InShipmentsPDF'
+import OutShipmentsPDF from '../PDF Templates/OutShipmentsPDF'
 import { FileDown, FileSpreadsheet, Share } from "lucide-react"
 import {
     DropdownMenu,
@@ -9,7 +10,11 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 
-const CargoReportExport = ({data, title}) => {
+const ShipmentReportExport = ({ data, title, shipmentType = "in" }) => {
+    const pdfElement = shipmentType === "out"
+        ? <OutShipmentsPDF data={data} title={title} />
+        : <InShipmentsPDF data={data} title={title} />
+
     return (
         <DropdownMenu dir='rtl'>
             <DropdownMenuTrigger asChild>
@@ -19,7 +24,7 @@ const CargoReportExport = ({data, title}) => {
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={e => exportToPDF(<CargoReportPDF data={data} title={title} />)}>
+                <DropdownMenuItem onSelect={e => exportToPDF(pdfElement)}>
                     <FileDown className="text-[#ef5350]" />
                     <span>PDF file</span>
                 </DropdownMenuItem>
@@ -32,4 +37,4 @@ const CargoReportExport = ({data, title}) => {
     )
 }
 
-export default CargoReportExport
+export default ShipmentReportExport

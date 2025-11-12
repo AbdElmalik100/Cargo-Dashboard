@@ -29,7 +29,7 @@ const SideBar = () => {
     }
     
     return (
-        <nav className="sidebar p-6 w-[350px] bg-neutral-800 text-white rounded-xl flex flex-col gap-6 overflow-auto thin-scrollbar">
+        <nav className="sidebar p-6 min-w-[325px] bg-neutral-800 text-white rounded-xl flex flex-col gap-6 overflow-auto thin-scrollbar">
             <NavLink to={'/'} className="logo-wrapper mx-auto">
                 <img src="/images/logo.png" width={128} alt="Logo Image" />
             </NavLink>

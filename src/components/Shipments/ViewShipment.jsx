@@ -8,10 +8,9 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { BadgeCheck, IdCard, Package, Weight, Building2, CalendarDays, FileText, User, Coins, Factory, ClipboardList, CheckCircle2, XCircle, Info, AlertCircle } from "lucide-react"
+import { BadgeCheck, IdCard, Package, Weight, Building2, CalendarDays, FileText, User, Coins, Factory, ClipboardList, CheckCircle2, XCircle } from "lucide-react"
 import { formatCurrency, formatWeight, formatDate } from "../../utils"
 import { useState } from "react"
-
 
 const Field = ({ label, value, icon }) => (
     <div className="flex flex-col gap-1 p-3 rounded-xl border border-neutral-200 bg-neutral-50">
@@ -19,15 +18,13 @@ const Field = ({ label, value, icon }) => (
             {icon}
             <span>{label}</span>
         </div>
-        <div className="font-semibold text-neutral-900 break-words" style={{direction: "rtl"}}>{value ?? "-"}</div>
+        <div className="font-semibold text-neutral-900 break-words" style={{ direction: "rtl" }}>{value ?? "-"}</div>
     </div>
 )
 
-const ViewCargo = ({ item, children }) => {
+const ViewShipment = ({ item, children }) => {
     const [open, setOpen] = useState(false)
-    
-    // Calculate status based on disbursement_date
-    const status = item.disbursement_date ? true : false
+    const status = Boolean(item.disbursement_date)
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -46,7 +43,6 @@ const ViewCargo = ({ item, children }) => {
                 </DialogHeader>
 
                 <div className="grid gap-4">
-                    {/* Status Alert Box */}
                     {status ? (
                         <div className="flex items-center gap-3 p-4 rounded-xl border border-green-200 bg-green-50">
                             <div className="flex-shrink-0 w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
@@ -100,6 +96,4 @@ const ViewCargo = ({ item, children }) => {
     )
 }
 
-export default ViewCargo
-
-
+export default ViewShipment

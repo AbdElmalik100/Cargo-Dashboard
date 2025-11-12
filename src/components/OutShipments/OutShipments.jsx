@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useMemo, useState, useEffect } from "react"
 import DataTable from "../DataTable"
-import CargoTableToolbar from "../Cargos/CargoTableToolbar"
 import ViewOutShipment from "./ViewOutShipment"
 import { useSelector, useDispatch } from "react-redux"
 import { getAllOutShipments, deleteOutShipment, getOutShipmentsStats } from "../../store/slices/outShipmentsSlice"
@@ -25,6 +24,7 @@ import { formatDate, formatCurrency, formatWeight } from "../../utils"
 import ExportShipment from "./ExportShipment"
 import EditOutShipment from "./EditOutShipment"
 import DeletePopup from "../DeletePopup"
+import ShipmentTableToolbar from "../Shipments/ShipmentTableToolbar"
 
 
 const OutShipments = () => {
@@ -365,7 +365,7 @@ const OutShipments = () => {
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">الشحنات الصادرة</h2>
             </div>
-            <CargoTableToolbar table={table} data={allShipments} shipmentType="out" />
+            <ShipmentTableToolbar table={table} data={allShipments} shipmentType="out" />
             <DataTable table={table} columns={columns} />
         </div>
     )

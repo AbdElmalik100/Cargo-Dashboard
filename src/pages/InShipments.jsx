@@ -10,21 +10,6 @@ const InShipmentsPage = () => {
     const { inShipmentsStats } = useSelector(state => state.inShipments)
 
     useEffect(() => {
-        const ws = new WebSocket(import.meta.env.VITE_WEBSOCKET_URL)
-
-        ws.onopen = () => console.log("WebSocket connection established")
-        ws.onmessage = (event) => {
-            const data = JSON.parse(event.data)
-            if (data.message === "update stats") {
-                dispatch(getShipmentsStats())
-            }
-        }
-        ws.onerror = (err) => console.log("WebSocket error:", err);
-        ws.onclose = (event) => console.log("Closed:", event);
-        return () => ws.close()
-    }, [dispatch])
-
-    useEffect(() => {
         dispatch(getShipments())
         dispatch(getInShipmentsStats())
         dispatch(me())

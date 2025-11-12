@@ -16,9 +16,7 @@ import {
 } from "@/components/ui/select"
 import { contractOptions } from "../../constants"
 
-
-
-const CargoFilter = ({ table, data }) => {
+const ShipmentFilter = ({ table, data }) => {
     const [filters, setFilters] = useState({
         company_name: "",
         destination: "",
@@ -33,7 +31,7 @@ const CargoFilter = ({ table, data }) => {
         if (column) {
             column.setFilterValue(val === "" ? undefined : val)
         } else {
-            console.error("CargoFilter: Column not found:", fieldName)
+            console.error("ShipmentFilter: Column not found:", fieldName)
         }
         setFilters({ ...filters, [fieldName]: val })
     }
@@ -89,7 +87,6 @@ const CargoFilter = ({ table, data }) => {
                         </p>
                     </div>
                     <div className="grid gap-2">
-                        {/* اسم الشركة */}
                         <div className="grid grid-cols-3 items-center gap-4">
                             <Label>اسم الشركة</Label>
                             <Select
@@ -120,7 +117,6 @@ const CargoFilter = ({ table, data }) => {
                             </Select>
                         </div>
 
-                        {/* الجهة */}
                         <div className="grid grid-cols-3 items-center gap-4">
                             <Label>الجهة</Label>
                             <Select
@@ -151,7 +147,6 @@ const CargoFilter = ({ table, data }) => {
                             </Select>
                         </div>
 
-                        {/* عقد / تصديق / حالة */}
                         <div className="grid grid-cols-3 items-center gap-4">
                             <Label>عقد / تصديق / حالة</Label>
                             <Select
@@ -170,7 +165,6 @@ const CargoFilter = ({ table, data }) => {
                             </Select>
                         </div>
 
-                        {/* الشهادة الجمركية */}
                         <div className="grid grid-cols-3 items-center gap-4">
                             <Label>الشهادة الجمركية</Label>
                             <Select
@@ -201,31 +195,6 @@ const CargoFilter = ({ table, data }) => {
                             </Select>
                         </div>
 
-                        {/* تاريخ الوارد */}
-                        {/* <div className="grid grid-cols-3 items-center gap-4">
-                            <Label>تاريخ الوارد</Label>
-                            <input
-                                className="col-span-2 border rounded px-2 py-1"
-                                type="date"
-                                style={{ direction: "ltr" }}
-                                value={filters.date}
-                                onChange={(e) => {
-                                    const val = e.target.value
-                                    setFilters({ ...filters, date: val, start_date: "", end_date: "" })
-                                    const column = table.getColumn("arrival_date")
-                                    if (val === "") {
-                                        column?.setFilterValue(undefined)
-                                    } else {
-                                        const testDate = new Date(val)
-                                        if (!isNaN(testDate.getTime())) {
-                                            column?.setFilterValue(val)
-                                        }
-                                    }
-                                }}
-                            />
-                        </div> */}
-
-                        {/* التاريخ من / إلى */}
                         <div className="grid grid-cols-3 items-center gap-4">
                             <Label>تاريخ الصرف من / إلى</Label>
                             <div className="col-span-2 flex gap-2">
@@ -258,4 +227,4 @@ const CargoFilter = ({ table, data }) => {
     )
 }
 
-export default CargoFilter
+export default ShipmentFilter
